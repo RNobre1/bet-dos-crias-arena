@@ -1,168 +1,159 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-
-type StatusPartida = Tables<'partidas'>['status'];
+import { gerarEscalacoes } from "@/utils/teamFormation";
 
 interface PartidaFormProps {
-  partidaAtiva: Tables<"partidas"> | null;
-  onPartidaUpdate: () => void;
+  onPartidaCriada: () => void;
+  onCancel: () => void;
 }
 
-const PartidaForm: React.FC<PartidaFormProps> = ({ partidaAtiva, onPartidaUpdate }) => {
-  const [formData, setFormData] = useState<{
-    data_partida: string;
-    time_a_nome: string;
-    time_b_nome: string;
-    status: StatusPartida;
-  }>({
-    data_partida: partidaAtiva?.data_partida ? new Date(partidaAtiva.data_partida).toISOString().slice(0, 16) : '',
-    time_a_nome: partidaAtiva?.time_a_nome || 'Time A',
-    time_b_nome: partidaAtiva?.time_b_nome || 'Time B',
-    status: partidaAtiva?.status || 'AGENDADA'
-  });
+const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) => {
+  const [timeANome, setTimeANome] = useState('');
+  const [timeBNome, setTimeBNome] = useState('');
+  const [dataPartida, setDataPartida] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [jogadores, setJogadores] = useState<Tables<"players">[]>([]);
 
-  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    loadJogadores();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const loadJogadores = async () => {
     try {
-      if (partidaAtiva) {
-        // Atualizar partida existente
-        const { error } = await supabase
-          .from('partidas')
-          .update({
-            data_partida: new Date(formData.data_partida).toISOString(),
-            time_a_nome: formData.time_a_nome,
-            time_b_nome: formData.time_b_nome,
-            status: formData.status
-          })
-          .eq('partida_id', partidaAtiva.partida_id);
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .neq('status', 'Lesionado')
+        .order('nota', { ascending: false });
 
-        if (error) throw error;
-        toast.success('Partida atualizada com sucesso!');
-      } else {
-        // Criar nova partida
-        const { error } = await supabase
-          .from('partidas')
-          .insert({
-            data_partida: new Date(formData.data_partida).toISOString(),
-            time_a_nome: formData.time_a_nome,
-            time_b_nome: formData.time_b_nome,
-            status: formData.status
-          });
-
-        if (error) throw error;
-        toast.success('Partida criada com sucesso!');
-      }
-
-      onPartidaUpdate();
+      if (error) throw error;
+      setJogadores(data || []);
     } catch (error) {
-      console.error('Erro ao salvar partida:', error);
-      toast.error('Erro ao salvar partida');
-    } finally {
-      setIsLoading(false);
+      console.error('Erro ao carregar jogadores:', error);
+      toast.error('Erro ao carregar jogadores');
     }
   };
 
-  const criarNovaPartida = () => {
-    setFormData({
-      data_partida: '',
-      time_a_nome: 'Time A',
-      time_b_nome: 'Time B',
-      status: 'AGENDADA'
-    });
+  const criarPartida = async () => {
+    if (!timeANome || !timeBNome || !dataPartida) {
+      toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    if (jogadores.length < 10) {
+      toast.error('É necessário ter pelo menos 10 jogadores disponíveis para criar uma partida');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Gerar escalações automaticamente
+      const escalacoes = gerarEscalacoes(jogadores);
+      
+      if (!escalacoes) {
+        toast.error('Não foi possível gerar escalações válidas com os jogadores disponíveis');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('partidas')
+        .insert({
+          time_a_nome: timeANome,
+          time_b_nome: timeBNome,
+          data_partida: new Date(dataPartida).toISOString(),
+          time_a_jogadores: escalacoes.timeA.map(j => j.id),
+          time_b_jogadores: escalacoes.timeB.map(j => j.id),
+          status: 'AGENDADA'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Partida criada com sucesso!');
+      onPartidaCriada();
+    } catch (error) {
+      console.error('Erro ao criar partida:', error);
+      toast.error('Erro ao criar partida');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Definir data mínima como agora
+  const agora = new Date();
+  const dataMinima = agora.toISOString().slice(0, 16);
+
   return (
-    <div className="space-y-6">
-      {!partidaAtiva && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Criar Nova Partida</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={criarNovaPartida} className="w-full">
-              Criar Partida
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+    <Card>
+      <CardHeader>
+        <CardTitle>Nova Partida</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="timeA">Nome do Time A</Label>
+          <Input
+            id="timeA"
+            type="text"
+            value={timeANome}
+            onChange={(e) => setTimeANome(e.target.value)}
+            placeholder="Ex: Time Azul"
+          />
+        </div>
 
-      {(partidaAtiva || formData.data_partida) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {partidaAtiva ? 'Editar Partida Ativa' : 'Nova Partida'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="data_partida">Data e Hora da Partida</Label>
-                <Input
-                  id="data_partida"
-                  type="datetime-local"
-                  value={formData.data_partida}
-                  onChange={(e) => setFormData({...formData, data_partida: e.target.value})}
-                  required
-                />
-              </div>
+        <div>
+          <Label htmlFor="timeB">Nome do Time B</Label>
+          <Input
+            id="timeB"
+            type="text"
+            value={timeBNome}
+            onChange={(e) => setTimeBNome(e.target.value)}
+            placeholder="Ex: Time Vermelho"
+          />
+        </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="time_a_nome">Nome do Time A</Label>
-                  <Input
-                    id="time_a_nome"
-                    value={formData.time_a_nome}
-                    onChange={(e) => setFormData({...formData, time_a_nome: e.target.value})}
-                    required
-                  />
-                </div>
+        <div>
+          <Label htmlFor="data">Data e Hora da Partida</Label>
+          <Input
+            id="data"
+            type="datetime-local"
+            value={dataPartida}
+            onChange={(e) => setDataPartida(e.target.value)}
+            min={dataMinima}
+          />
+        </div>
 
-                <div>
-                  <Label htmlFor="time_b_nome">Nome do Time B</Label>
-                  <Input
-                    id="time_b_nome"
-                    value={formData.time_b_nome}
-                    onChange={(e) => setFormData({...formData, time_b_nome: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
+        <div className="text-sm text-gray-600">
+          <p>As escalações serão geradas automaticamente baseadas nas notas dos jogadores.</p>
+          <p>Jogadores disponíveis: {jogadores.length}</p>
+        </div>
 
-              <div>
-                <Label htmlFor="status">Status da Partida</Label>
-                <Select value={formData.status} onValueChange={(value: StatusPartida) => setFormData({...formData, status: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="AGENDADA">Agendada</SelectItem>
-                    <SelectItem value="AO_VIVO">Ao Vivo</SelectItem>
-                    <SelectItem value="FINALIZADA">Finalizada</SelectItem>
-                    <SelectItem value="ADIADA">Adiada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? 'Salvando...' : (partidaAtiva ? 'Atualizar Partida' : 'Criar Partida')}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+        <div className="flex gap-2 pt-4">
+          <Button 
+            onClick={criarPartida} 
+            disabled={loading}
+            className="flex-1 bg-green-600 hover:bg-green-700"
+          >
+            {loading ? 'Criando...' : 'Criar Partida'}
+          </Button>
+          
+          <Button 
+            onClick={onCancel}
+            variant="outline"
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

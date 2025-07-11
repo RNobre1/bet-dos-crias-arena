@@ -1,53 +1,42 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Tables } from "@/integrations/supabase/types";
-import { calculateOdds } from "@/utils/oddsCalculator";
-import { generateTeams } from "@/utils/teamFormation";
-import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import BilheteAposta from "./BilheteAposta";
-import SelecaoPartida from "./SelecaoPartida";
-import HistoricoApostas from "./HistoricoApostas";
-import { Trophy, Users, AlertTriangle } from "lucide-react";
-import { Selecao } from '@/types/apostas';
+import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import SelecaoPartida from './SelecaoPartida';
+import BilheteAposta from './BilheteAposta';
+import HistoricoApostas from './HistoricoApostas';
+import { calcularOdds } from "@/utils/oddsCalculator";
+import { TrendingUp } from "lucide-react";
 
 interface MercadosApostaNewProps {
   jogadores: Tables<"players">[];
 }
 
+interface SelecaoAposta {
+  categoria: string;
+  detalhe: string;
+  odd: number;
+  jogadorId?: string;
+  jogadorNome?: string;
+  partidaId: number;
+}
+
 const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
-  const { profile } = useAuth();
-  const [selecoes, setSelecoes] = useState<Selecao[]>([]);
-  const [odds, setOdds] = useState<any>(null);
-  const [escalacoes, setEscalacoes] = useState<any>(null);
+  const { user, profile } = useAuth();
   const [partidas, setPartidas] = useState<Tables<"partidas">[]>([]);
   const [partidaSelecionada, setPartidaSelecionada] = useState<Tables<"partidas"> | null>(null);
-  const [showHistorico, setShowHistorico] = useState(false);
-  const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set());
+  const [selecoes, setSelecoes] = useState<SelecaoAposta[]>([]);
+  const [jogadorVinculado, setJogadorVinculado] = useState<Tables<"players"> | null>(null);
 
   useEffect(() => {
-    loadPartidas();
-  }, []);
-
-  useEffect(() => {
-    if (partidaSelecionada && jogadores.length > 0) {
-      // Gerar escalações
-      const teams = generateTeams(jogadores);
-      setEscalacoes(teams);
-
-      // Calcular odds baseadas nas escalações
-      const calculatedOdds = calculateOdds(teams.timeA.jogadores, teams.timeB.jogadores, jogadores);
-      setOdds(calculatedOdds);
-    } else {
-      setEscalacoes(null);
-      setOdds(null);
+    if (user) {
+      loadPartidas();
+      loadJogadorVinculado();
     }
-  }, [partidaSelecionada, jogadores]);
+  }, [user]);
 
   const loadPartidas = async () => {
     try {
@@ -61,543 +50,293 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
       setPartidas(data || []);
     } catch (error) {
       console.error('Erro ao carregar partidas:', error);
+      toast.error('Erro ao carregar partidas');
     }
   };
 
-  const verificarApostasConflitantes = (novaSelecao: Selecao): boolean => {
-    // Verificar se há conflito com resultado da partida
-    if (novaSelecao.categoria === 'RESULTADO_PARTIDA') {
-      const conflito = selecoes.find(s => 
-        s.categoria === 'RESULTADO_PARTIDA' && 
-        s.partida_id === novaSelecao.partida_id &&
-        s.detalhe !== novaSelecao.detalhe
-      );
-      
-      if (conflito) {
-        toast.error(`Conflito detectado: Não é possível apostar em "${novaSelecao.descricao}" e "${conflito.descricao}" ao mesmo tempo!`);
-        return true;
-      }
-    }
-
-    // Verificar outros tipos de conflito (mesmo mercado, mesmo jogador)
-    const conflito = selecoes.find(s => 
-      s.categoria === novaSelecao.categoria &&
-      s.detalhe.split('_')[0] === novaSelecao.detalhe.split('_')[0] &&
-      s.jogador_id === novaSelecao.jogador_id &&
-      s.partida_id === novaSelecao.partida_id
-    );
-
-    if (conflito) {
-      toast.error('Já existe uma aposta similar para este mercado!');
-      return true;
-    }
-
-    return false;
-  };
-
-  const adicionarSelecao = (categoria: string, detalhe: string, odd: number, descricao: string, jogadorAlvo?: Tables<"players">) => {
-    if (!partidaSelecionada) return;
+  const loadJogadorVinculado = async () => {
+    if (!user) return;
     
-    // Verificar se usuário não está apostando em si mesmo
-    if (jogadorAlvo && profile?.user_id) {
-      const jogadorDoUsuario = jogadores.find(j => j.user_id === profile.user_id);
-      if (jogadorDoUsuario && jogadorAlvo.id === jogadorDoUsuario.id) {
-        toast.error('Você não pode apostar em si mesmo!');
-        return;
-      }
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setJogadorVinculado(data);
+    } catch (error) {
+      console.error('Erro ao carregar jogador vinculado:', error);
     }
+  };
 
-    const novaSelecao: Selecao = {
-      id: crypto.randomUUID(),
-      partida_id: partidaSelecionada.partida_id,
-      categoria,
-      detalhe,
-      descricao,
-      odd,
-      jogador_id: jogadorAlvo?.id || null
-    };
-
-    // Verificar conflitos
-    if (verificarApostasConflitantes(novaSelecao)) {
+  const adicionarSelecao = (selecao: SelecaoAposta) => {
+    // Verificar se usuário está tentando apostar em si mesmo
+    if (jogadorVinculado && selecao.jogadorId === jogadorVinculado.id) {
+      toast.error('Você não pode apostar em si mesmo!');
       return;
     }
 
-    // Adicionar ou substituir seleção
-    const conflito = selecoes.find(s => 
-      s.categoria === categoria && 
-      s.detalhe.split('_')[0] === detalhe.split('_')[0] &&
-      s.jogador_id === novaSelecao.jogador_id
+    // Verificar se a seleção já existe
+    const jaExiste = selecoes.some(s => 
+      s.categoria === selecao.categoria && 
+      s.detalhe === selecao.detalhe && 
+      s.jogadorId === selecao.jogadorId &&
+      s.partidaId === selecao.partidaId
     );
 
-    if (conflito) {
-      setSelecoes(prev => prev.map(s => 
-        s.id === conflito.id ? novaSelecao : s
-      ));
-      toast.info('Seleção atualizada no bilhete!');
-    } else {
-      setSelecoes(prev => [...prev, novaSelecao]);
-      toast.success('Seleção adicionada ao bilhete!');
+    if (jaExiste) {
+      toast.error('Esta seleção já foi adicionada');
+      return;
     }
+
+    setSelecoes([...selecoes, selecao]);
+    toast.success('Seleção adicionada ao bilhete');
   };
 
-  const removerSelecao = (id: string) => {
-    setSelecoes(prev => prev.filter(s => s.id !== id));
+  const removerSelecao = (index: number) => {
+    setSelecoes(selecoes.filter((_, i) => i !== index));
   };
 
   const limparBilhete = () => {
     setSelecoes([]);
   };
 
-  const togglePlayerExpanded = (playerId: string) => {
-    setExpandedPlayers(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(playerId)) {
-        newSet.delete(playerId);
-      } else {
-        newSet.add(playerId);
-      }
-      return newSet;
-    });
-  };
-
-  const hasStatisticData = (jogador: Tables<"players">, statistic: string): boolean => {
-    switch (statistic) {
-      case 'gols':
-        return jogador.jogos > 0 && jogador.gols >= 0;
-      case 'assistencias':
-        return jogador.jogos > 0 && jogador.assistencias >= 0;
-      case 'desarmes':
-        return jogador.jogos > 0 && jogador.desarmes > 0;
-      case 'defesas':
-        return jogador.jogos > 0 && jogador.defesas > 0;
-      default:
-        return false;
-    }
-  };
-
-  if (showHistorico) {
+  // Verificar se usuário está vinculado a um jogador
+  if (!jogadorVinculado) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Histórico de Apostas</h2>
-          <Button onClick={() => setShowHistorico(false)} variant="outline">
-            Voltar às Apostas
-          </Button>
-        </div>
-        <HistoricoApostas />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Mercados de Apostas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            Você precisa estar vinculado a um jogador para poder fazer apostas. 
+            Entre em contato com o administrador para vincular sua conta a um jogador.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
+  const renderMercadosResultado = () => {
+    if (!partidaSelecionada) return null;
+
+    const oddsResultado = {
+      VITORIA_A: 2.1,
+      EMPATE: 3.2,
+      VITORIA_B: 2.8
+    };
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Resultado da Partida</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button
+              onClick={() => adicionarSelecao({
+                categoria: 'RESULTADO_PARTIDA',
+                detalhe: 'VITORIA_A',
+                odd: oddsResultado.VITORIA_A,
+                partidaId: partidaSelecionada.partida_id
+              })}
+              className="p-3 border rounded-lg hover:bg-gray-50 text-center"
+            >
+              <div className="font-medium">{partidaSelecionada.time_a_nome}</div>
+              <div className="text-green-600 font-bold">{oddsResultado.VITORIA_A}</div>
+            </button>
+
+            <button
+              onClick={() => adicionarSelecao({
+                categoria: 'RESULTADO_PARTIDA',
+                detalhe: 'EMPATE',
+                odd: oddsResultado.EMPATE,
+                partidaId: partidaSelecionada.partida_id
+              })}
+              className="p-3 border rounded-lg hover:bg-gray-50 text-center"
+            >
+              <div className="font-medium">Empate</div>
+              <div className="text-green-600 font-bold">{oddsResultado.EMPATE}</div>
+            </button>
+
+            <button
+              onClick={() => adicionarSelecao({
+                categoria: 'RESULTADO_PARTIDA',
+                detalhe: 'VITORIA_B',
+                odd: oddsResultado.VITORIA_B,
+                partidaId: partidaSelecionada.partida_id
+              })}
+              className="p-3 border rounded-lg hover:bg-gray-50 text-center"
+            >
+              <div className="font-medium">{partidaSelecionada.time_b_nome}</div>
+              <div className="text-green-600 font-bold">{oddsResultado.VITORIA_B}</div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderMercadosJogador = () => {
+    if (!partidaSelecionada) return null;
+
+    // Obter jogadores escalados para esta partida
+    const jogadoresEscalados = [
+      ...(partidaSelecionada.time_a_jogadores || []),
+      ...(partidaSelecionada.time_b_jogadores || [])
+    ];
+
+    const jogadoresDisponiveis = jogadores.filter(j => 
+      jogadoresEscalados.includes(j.id) && j.id !== jogadorVinculado?.id
+    );
+
+    if (jogadoresDisponiveis.length === 0) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Mercados de Jogadores</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600">Nenhum jogador disponível para apostas nesta partida.</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Mercados de Jogadores</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {jogadoresDisponiveis.map((jogador) => {
+              const odds = calcularOdds(jogador);
+              
+              return (
+                <div key={jogador.id} className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-3">{jogador.jogador}</h4>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                    <button
+                      onClick={() => adicionarSelecao({
+                        categoria: 'MERCADO_JOGADOR',
+                        detalhe: `GOLS_MAIS_0.5_${jogador.id}`,
+                        odd: odds.golsMais05,
+                        jogadorId: jogador.id,
+                        jogadorNome: jogador.jogador,
+                        partidaId: partidaSelecionada.partida_id
+                      })}
+                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
+                    >
+                      <div>Gols +0.5</div>
+                      <div className="text-green-600 font-bold">{odds.golsMais05}</div>
+                    </button>
+
+                    <button
+                      onClick={() => adicionarSelecao({
+                        categoria: 'MERCADO_JOGADOR',
+                        detalhe: `GOLS_MAIS_1.5_${jogador.id}`,
+                        odd: odds.golsMais15,
+                        jogadorId: jogador.id,
+                        jogadorNome: jogador.jogador,
+                        partidaId: partidaSelecionada.partida_id
+                      })}
+                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
+                    >
+                      <div>Gols +1.5</div>
+                      <div className="text-green-600 font-bold">{odds.golsMais15}</div>
+                    </button>
+
+                    <button
+                      onClick={() => adicionarSelecao({
+                        categoria: 'MERCADO_JOGADOR',
+                        detalhe: `ASSIST_MAIS_0.5_${jogador.id}`,
+                        odd: odds.assistMais05,
+                        jogadorId: jogador.id,
+                        jogadorNome: jogador.jogador,
+                        partidaId: partidaSelecionada.partida_id
+                      })}
+                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
+                    >
+                      <div>Assist +0.5</div>
+                      <div className="text-green-600 font-bold">{odds.assistMais05}</div>
+                    </button>
+
+                    <button
+                      onClick={() => adicionarSelecao({
+                        categoria: 'MERCADO_JOGADOR',
+                        detalhe: `DESARMES_MAIS_1.5_${jogador.id}`,
+                        odd: odds.desarmesMais15,
+                        jogadorId: jogador.id,
+                        jogadorNome: jogador.jogador,
+                        partidaId: partidaSelecionada.partida_id
+                      })}
+                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
+                    >
+                      <div>Desarmes +1.5</div>
+                      <div className="text-green-600 font-bold">{odds.desarmesMais15}</div>
+                    </button>
+
+                    <button
+                      onClick={() => adicionarSelecao({
+                        categoria: 'MERCADO_JOGADOR',
+                        detalhe: `DEFESAS_MAIS_2.5_${jogador.id}`,
+                        odd: odds.defesasMais25,
+                        jogadorId: jogador.id,
+                        jogadorNome: jogador.jogador,
+                        partidaId: partidaSelecionada.partida_id
+                      })}
+                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
+                    >
+                      <div>Defesas +2.5</div>
+                      <div className="text-green-600 font-bold">{odds.defesasMais25}</div>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Sistema de Apostas</h2>
-        <Button onClick={() => setShowHistorico(true)} variant="outline">
-          Ver Histórico
-        </Button>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Mercados de Apostas */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Seleção de Partida */}
-          <SelecaoPartida 
+          <SelecaoPartida
             partidas={partidas}
             partidaSelecionada={partidaSelecionada}
             onPartidaChange={setPartidaSelecionada}
           />
 
-          {partidaSelecionada && odds && escalacoes && (
+          {partidaSelecionada && (
             <>
-              {/* Info da Partida */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="w-5 h-5" />
-                    {partidaSelecionada.time_a_nome} vs {partidaSelecionada.time_b_nome}
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    {new Date(partidaSelecionada.data_partida).toLocaleString('pt-BR')}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <h4 className="font-semibold">{escalacoes.timeA.nome}</h4>
-                      <p className="text-sm text-gray-600">Formação: {escalacoes.timeA.formacao}</p>
-                      <p className="text-lg font-bold text-green-600">
-                        Nota: {escalacoes.timeA.notaTotal.toFixed(1)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <h4 className="font-semibold">{escalacoes.timeB.nome}</h4>
-                      <p className="text-sm text-gray-600">Formação: {escalacoes.timeB.formacao}</p>
-                      <p className="text-lg font-bold text-blue-600">
-                        Nota: {escalacoes.timeB.notaTotal.toFixed(1)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Resultado da Partida */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resultado da Partida</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex flex-col p-4 h-auto"
-                      onClick={() => adicionarSelecao(
-                        'RESULTADO_PARTIDA',
-                        'VITORIA_A',
-                        odds.resultado.timeA,
-                        `${partidaSelecionada.time_a_nome} para Vencer`
-                      )}
-                    >
-                      <span className="text-sm">{partidaSelecionada.time_a_nome}</span>
-                      <span className="text-lg font-bold">{odds.resultado.timeA.toFixed(2)}</span>
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      className="flex flex-col p-4 h-auto"
-                      onClick={() => adicionarSelecao(
-                        'RESULTADO_PARTIDA',
-                        'EMPATE',
-                        odds.resultado.empate,
-                        'Empate'
-                      )}
-                    >
-                      <span className="text-sm">Empate</span>
-                      <span className="text-lg font-bold">{odds.resultado.empate.toFixed(2)}</span>
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      className="flex flex-col p-4 h-auto"
-                      onClick={() => adicionarSelecao(
-                        'RESULTADO_PARTIDA',
-                        'VITORIA_B',
-                        odds.resultado.timeB,
-                        `${partidaSelecionada.time_b_nome} para Vencer`
-                      )}
-                    >
-                      <span className="text-sm">{partidaSelecionada.time_b_nome}</span>
-                      <span className="text-lg font-bold">{odds.resultado.timeB.toFixed(2)}</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Mercados de Jogadores */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Mercados de Jogadores
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {odds.jogadores.map((jogadorOdds: any) => {
-                      const jogador = jogadores.find(j => j.id === jogadorOdds.id);
-                      if (!jogador) return null;
-
-                      const isOwnPlayer = profile?.user_id && jogador.user_id === profile.user_id;
-                      const isExpanded = expandedPlayers.has(jogador.id);
-
-                      const hasGols = hasStatisticData(jogador, 'gols');
-                      const hasAssistencias = hasStatisticData(jogador, 'assistencias');
-                      const hasDesarmes = hasStatisticData(jogador, 'desarmes');
-                      const hasDefesas = hasStatisticData(jogador, 'defesas');
-
-                      if (!hasGols && !hasAssistencias && !hasDesarmes && !hasDefesas) {
-                        return null;
-                      }
-
-                      return (
-                        <Collapsible key={jogador.id} open={isExpanded} onOpenChange={() => togglePlayerExpanded(jogador.id)}>
-                          <div className={`p-4 border rounded-lg ${isOwnPlayer ? 'bg-red-50 border-red-200' : ''}`}>
-                            <CollapsibleTrigger asChild>
-                              <div className="flex items-center justify-between mb-3 cursor-pointer">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-semibold">{jogador.jogador}</h4>
-                                  {isOwnPlayer && <Badge variant="destructive">Você</Badge>}
-                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                </div>
-                                <Badge variant="outline">
-                                  Nota: {jogador.nota.toFixed(1)}
-                                </Badge>
-                              </div>
-                            </CollapsibleTrigger>
-
-                            <CollapsibleContent>
-                              <div className="space-y-4">
-                                {/* Seção de Gols */}
-                                {hasGols && (
-                                  <div>
-                                    <h5 className="font-medium text-sm mb-2 text-blue-600">Gols</h5>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `GOLS_MAIS_0.5_${jogador.id}`,
-                                          jogadorOdds.gols_0_5,
-                                          `${jogador.jogador} +0.5 Gols`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+0.5</div>
-                                          <div className="font-bold">{jogadorOdds.gols_0_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `GOLS_MAIS_1.5_${jogador.id}`,
-                                          jogadorOdds.gols_1_5,
-                                          `${jogador.jogador} +1.5 Gols`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+1.5</div>
-                                          <div className="font-bold">{jogadorOdds.gols_1_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `GOLS_MAIS_2.5_${jogador.id}`,
-                                          jogadorOdds.gols_2_5,
-                                          `${jogador.jogador} +2.5 Gols`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+2.5</div>
-                                          <div className="font-bold">{jogadorOdds.gols_2_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Seção de Assistências */}
-                                {hasAssistencias && (
-                                  <div>
-                                    <h5 className="font-medium text-sm mb-2 text-purple-600">Assistências</h5>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `ASSIST_MAIS_0.5_${jogador.id}`,
-                                          jogadorOdds.assistencias_0_5,
-                                          `${jogador.jogador} +0.5 Assist`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+0.5</div>
-                                          <div className="font-bold">{jogadorOdds.assistencias_0_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `ASSIST_MAIS_1.5_${jogador.id}`,
-                                          jogadorOdds.assistencias_1_5,
-                                          `${jogador.jogador} +1.5 Assist`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+1.5</div>
-                                          <div className="font-bold">{jogadorOdds.assistencias_1_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `ASSIST_MAIS_2.5_${jogador.id}`,
-                                          jogadorOdds.assistencias_2_5,
-                                          `${jogador.jogador} +2.5 Assist`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+2.5</div>
-                                          <div className="font-bold">{jogadorOdds.assistencias_2_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Seção de Desarmes */}
-                                {hasDesarmes && (
-                                  <div>
-                                    <h5 className="font-medium text-sm mb-2 text-orange-600">Desarmes</h5>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `DESARMES_MAIS_1.5_${jogador.id}`,
-                                          jogadorOdds.desarmes_1_5,
-                                          `${jogador.jogador} +1.5 Desarmes`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+1.5</div>
-                                          <div className="font-bold">{jogadorOdds.desarmes_1_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `DESARMES_MAIS_2.5_${jogador.id}`,
-                                          jogadorOdds.desarmes_2_5,
-                                          `${jogador.jogador} +2.5 Desarmes`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+2.5</div>
-                                          <div className="font-bold">{jogadorOdds.desarmes_2_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `DESARMES_MAIS_3.5_${jogador.id}`,
-                                          jogadorOdds.desarmes_3_5,
-                                          `${jogador.jogador} +3.5 Desarmes`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+3.5</div>
-                                          <div className="font-bold">{jogadorOdds.desarmes_3_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Seção de Defesas */}
-                                {hasDefesas && (
-                                  <div>
-                                    <h5 className="font-medium text-sm mb-2 text-green-600">Defesas</h5>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `DEFESAS_MAIS_2.5_${jogador.id}`,
-                                          jogadorOdds.defesas_2_5,
-                                          `${jogador.jogador} +2.5 Defesas`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+2.5</div>
-                                          <div className="font-bold">{jogadorOdds.defesas_2_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `DEFESAS_MAIS_3.5_${jogador.id}`,
-                                          jogadorOdds.defesas_3_5,
-                                          `${jogador.jogador} +3.5 Defesas`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+3.5</div>
-                                          <div className="font-bold">{jogadorOdds.defesas_3_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isOwnPlayer}
-                                        onClick={() => adicionarSelecao(
-                                          'MERCADO_JOGADOR',
-                                          `DEFESAS_MAIS_4.5_${jogador.id}`,
-                                          jogadorOdds.defesas_4_5,
-                                          `${jogador.jogador} +4.5 Defesas`,
-                                          jogador
-                                        )}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-xs">+4.5</div>
-                                          <div className="font-bold">{jogadorOdds.defesas_4_5.toFixed(2)}</div>
-                                        </div>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </CollapsibleContent>
-                          </div>
-                        </Collapsible>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+              {renderMercadosResultado()}
+              {renderMercadosJogador()}
             </>
           )}
         </div>
 
-        {/* Bilhete de Aposta */}
-        <div className="lg:col-span-1">
-          <BilheteAposta 
+        <div className="space-y-6">
+          <BilheteAposta
             selecoes={selecoes}
             onRemoverSelecao={removerSelecao}
             onLimparBilhete={limparBilhete}
+            onApostaFinalizada={loadPartidas}
           />
         </div>
       </div>
+
+      <HistoricoApostas />
     </div>
   );
 };

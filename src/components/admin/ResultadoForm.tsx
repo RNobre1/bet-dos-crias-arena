@@ -71,12 +71,30 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
   const processarResultado = async () => {
     setLoading(true);
     try {
+      console.log('Iniciando processamento do resultado...');
+      
+      // Obter escalações da partida
+      const escalacaoA = partida.time_a_jogadores || [];
+      const escalacaoB = partida.time_b_jogadores || [];
+      const todosJogadoresEscalados = [...escalacaoA, ...escalacaoB];
+      
+      console.log('Jogadores escalados:', todosJogadoresEscalados);
+
       // Atualizar estatísticas dos jogadores
       for (const playerStats of jogadores) {
         const hasStats = playerStats.gols > 0 || playerStats.assistencias > 0 || 
                         playerStats.defesas > 0 || playerStats.desarmes > 0 || playerStats.faltas > 0;
         
-        if (hasStats) {
+        // Verificar se jogador estava escalado para incrementar jogos
+        const jogouPartida = todosJogadoresEscalados.includes(playerStats.id);
+
+        if (hasStats || jogouPartida) {
+          console.log(`Atualizando estatísticas de ${playerStats.jogador}:`, {
+            hasStats,
+            jogouPartida,
+            stats: playerStats
+          });
+
           // Buscar estatísticas atuais do jogador
           const { data: currentPlayer } = await supabase
             .from('players')
@@ -85,6 +103,8 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
             .single();
 
           if (currentPlayer) {
+            const novoJogos = jogouPartida ? currentPlayer.jogos + 1 : currentPlayer.jogos;
+            
             const { error } = await supabase
               .from('players')
               .update({
@@ -93,12 +113,17 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
                 defesas: currentPlayer.defesas + playerStats.defesas,
                 desarmes: currentPlayer.desarmes + playerStats.desarmes,
                 faltas: currentPlayer.faltas + playerStats.faltas,
-                jogos: currentPlayer.jogos + 1,
+                jogos: novoJogos,
                 updated_at: new Date().toISOString()
               })
               .eq('id', playerStats.id);
 
-            if (error) throw error;
+            if (error) {
+              console.error(`Erro ao atualizar jogador ${playerStats.jogador}:`, error);
+              throw error;
+            }
+            
+            console.log(`Jogador ${playerStats.jogador} atualizado com sucesso`);
           }
         }
       }
@@ -113,6 +138,8 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
         .eq('partida_id', partida.partida_id);
 
       if (partidaError) throw partidaError;
+
+      console.log('Partida marcada como finalizada');
 
       // Processar apostas
       await processarApostas();
@@ -129,6 +156,8 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
 
   const processarApostas = async () => {
     try {
+      console.log('Iniciando processamento de apostas...');
+      
       // Buscar todas as seleções pendentes para esta partida
       const { data: selecoes, error: selecoesError } = await supabase
         .from('selecoes')
@@ -141,9 +170,17 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
 
       if (selecoesError) throw selecoesError;
 
+      console.log('Seleções encontradas:', selecoes?.length || 0);
+
       // Processar cada seleção
       for (const selecao of selecoes || []) {
         let isGanha = false;
+
+        console.log('Processando seleção:', {
+          categoria: selecao.categoria_aposta,
+          detalhe: selecao.detalhe_aposta,
+          jogador: selecao.jogador_alvo_id
+        });
 
         // Verificar resultado baseado no tipo de aposta
         switch (selecao.categoria_aposta) {
@@ -157,15 +194,27 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
             if (selecao.jogador_alvo_id) {
               const playerStats = jogadores.find(p => p.id === selecao.jogador_alvo_id);
               if (playerStats) {
-                if (selecao.detalhe_aposta.includes('GOLS_MAIS_0.5') && playerStats.gols >= 1) isGanha = true;
-                if (selecao.detalhe_aposta.includes('GOLS_MAIS_1.5') && playerStats.gols >= 2) isGanha = true;
-                if (selecao.detalhe_aposta.includes('ASSIST_MAIS_0.5') && playerStats.assistencias >= 1) isGanha = true;
-                if (selecao.detalhe_aposta.includes('DESARMES_MAIS_1.5') && playerStats.desarmes >= 2) isGanha = true;
-                if (selecao.detalhe_aposta.includes('DEFESAS_MAIS_2.5') && playerStats.defesas >= 3) isGanha = true;
+                // Verificar apostas com base no detalhe, removendo IDs extras
+                const detalheBase = selecao.detalhe_aposta.split('_').slice(0, -1).join('_');
+                
+                console.log(`Verificando aposta de jogador:`, {
+                  jogador: playerStats.jogador,
+                  detalhe: selecao.detalhe_aposta,
+                  detalheBase,
+                  stats: playerStats
+                });
+
+                if (detalheBase.includes('GOLS_MAIS_0.5') && playerStats.gols >= 1) isGanha = true;
+                else if (detalheBase.includes('GOLS_MAIS_1.5') && playerStats.gols >= 2) isGanha = true;
+                else if (detalheBase.includes('ASSIST_MAIS_0.5') && playerStats.assistencias >= 1) isGanha = true;
+                else if (detalheBase.includes('DESARMES_MAIS_1.5') && playerStats.desarmes >= 2) isGanha = true;
+                else if (detalheBase.includes('DEFESAS_MAIS_2.5') && playerStats.defesas >= 3) isGanha = true;
               }
             }
             break;
         }
+
+        console.log(`Seleção ${selecao.selecao_id}: ${isGanha ? 'GANHA' : 'PERDIDA'}`);
 
         // Atualizar status da seleção
         await supabase
@@ -177,6 +226,8 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
       // Processar bilhetes
       const bilhetesUnicos = [...new Set(selecoes?.map(s => s.bilhete_id))];
       
+      console.log('Processando bilhetes:', bilhetesUnicos.length);
+
       for (const bilheteId of bilhetesUnicos) {
         const { data: selecoesDoBlhete } = await supabase
           .from('selecoes')
@@ -184,10 +235,9 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
           .eq('bilhete_id', bilheteId);
 
         const todasGanhas = selecoesDoBlhete?.every(s => s.status_selecao === 'GANHA');
-        const algumaPerdida = selecoesDoBlhete?.some(s => s.status_selecao === 'PERDIDA');
+        const statusBilhete: 'GANHO' | 'PERDIDO' = todasGanhas ? 'GANHO' : 'PERDIDO';
 
-        let statusBilhete: 'GANHO' | 'PERDIDO' = 'PERDIDO';
-        if (todasGanhas) statusBilhete = 'GANHO';
+        console.log(`Bilhete ${bilheteId}: ${statusBilhete}`);
 
         // Atualizar status do bilhete
         await supabase
@@ -206,6 +256,8 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
           if (bilhete) {
             const premio = bilhete.valor_apostado * bilhete.odd_total;
             
+            console.log(`Pagando prêmio de ${premio} para usuário`, bilhete.user_id);
+            
             const { data: usuario } = await supabase
               .from('usuarios')
               .select('saldo_ficticio')
@@ -217,10 +269,14 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
                 .from('usuarios')
                 .update({ saldo_ficticio: usuario.saldo_ficticio + premio })
                 .eq('user_id', bilhete.user_id);
+              
+              console.log(`Saldo atualizado para usuário ${bilhete.user_id}`);
             }
           }
         }
       }
+      
+      console.log('Processamento de apostas concluído');
     } catch (error) {
       console.error('Erro ao processar apostas:', error);
       throw error;
