@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -161,6 +160,21 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     });
   };
 
+  const hasStatisticData = (jogador: Tables<"players">, statistic: string): boolean => {
+    switch (statistic) {
+      case 'gols':
+        return jogador.jogos > 0 && jogador.gols >= 0;
+      case 'assistencias':
+        return jogador.jogos > 0 && jogador.assistencias >= 0;
+      case 'desarmes':
+        return jogador.jogos > 0 && jogador.desarmes > 0;
+      case 'defesas':
+        return jogador.jogos > 0 && jogador.defesas > 0;
+      default:
+        return false;
+    }
+  };
+
   if (showHistorico) {
     return (
       <div className="space-y-6">
@@ -296,6 +310,15 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
                       const isOwnPlayer = profile?.user_id && jogador.user_id === profile.user_id;
                       const isExpanded = expandedPlayers.has(jogador.id);
 
+                      const hasGols = hasStatisticData(jogador, 'gols');
+                      const hasAssistencias = hasStatisticData(jogador, 'assistencias');
+                      const hasDesarmes = hasStatisticData(jogador, 'desarmes');
+                      const hasDefesas = hasStatisticData(jogador, 'defesas');
+
+                      if (!hasGols && !hasAssistencias && !hasDesarmes && !hasDefesas) {
+                        return null;
+                      }
+
                       return (
                         <Collapsible key={jogador.id} open={isExpanded} onOpenChange={() => togglePlayerExpanded(jogador.id)}>
                           <div className={`p-4 border rounded-lg ${isOwnPlayer ? 'bg-red-50 border-red-200' : ''}`}>
@@ -315,123 +338,127 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
                             <CollapsibleContent>
                               <div className="space-y-4">
                                 {/* Seção de Gols */}
-                                <div>
-                                  <h5 className="font-medium text-sm mb-2 text-blue-600">Gols</h5>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isOwnPlayer}
-                                      onClick={() => adicionarSelecao(
-                                        'MERCADO_JOGADOR',
-                                        `GOLS_MAIS_0.5_${jogador.id}`,
-                                        jogadorOdds.gols_0_5,
-                                        `${jogador.jogador} +0.5 Gols`,
-                                        jogador
-                                      )}
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-xs">+0.5</div>
-                                        <div className="font-bold">{jogadorOdds.gols_0_5.toFixed(2)}</div>
-                                      </div>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isOwnPlayer}
-                                      onClick={() => adicionarSelecao(
-                                        'MERCADO_JOGADOR',
-                                        `GOLS_MAIS_1.5_${jogador.id}`,
-                                        jogadorOdds.gols_1_5,
-                                        `${jogador.jogador} +1.5 Gols`,
-                                        jogador
-                                      )}
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-xs">+1.5</div>
-                                        <div className="font-bold">{jogadorOdds.gols_1_5.toFixed(2)}</div>
-                                      </div>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isOwnPlayer}
-                                      onClick={() => adicionarSelecao(
-                                        'MERCADO_JOGADOR',
-                                        `GOLS_MAIS_2.5_${jogador.id}`,
-                                        jogadorOdds.gols_2_5,
-                                        `${jogador.jogador} +2.5 Gols`,
-                                        jogador
-                                      )}
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-xs">+2.5</div>
-                                        <div className="font-bold">{jogadorOdds.gols_2_5.toFixed(2)}</div>
-                                      </div>
-                                    </Button>
+                                {hasGols && (
+                                  <div>
+                                    <h5 className="font-medium text-sm mb-2 text-blue-600">Gols</h5>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isOwnPlayer}
+                                        onClick={() => adicionarSelecao(
+                                          'MERCADO_JOGADOR',
+                                          `GOLS_MAIS_0.5_${jogador.id}`,
+                                          jogadorOdds.gols_0_5,
+                                          `${jogador.jogador} +0.5 Gols`,
+                                          jogador
+                                        )}
+                                      >
+                                        <div className="text-center">
+                                          <div className="text-xs">+0.5</div>
+                                          <div className="font-bold">{jogadorOdds.gols_0_5.toFixed(2)}</div>
+                                        </div>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isOwnPlayer}
+                                        onClick={() => adicionarSelecao(
+                                          'MERCADO_JOGADOR',
+                                          `GOLS_MAIS_1.5_${jogador.id}`,
+                                          jogadorOdds.gols_1_5,
+                                          `${jogador.jogador} +1.5 Gols`,
+                                          jogador
+                                        )}
+                                      >
+                                        <div className="text-center">
+                                          <div className="text-xs">+1.5</div>
+                                          <div className="font-bold">{jogadorOdds.gols_1_5.toFixed(2)}</div>
+                                        </div>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isOwnPlayer}
+                                        onClick={() => adicionarSelecao(
+                                          'MERCADO_JOGADOR',
+                                          `GOLS_MAIS_2.5_${jogador.id}`,
+                                          jogadorOdds.gols_2_5,
+                                          `${jogador.jogador} +2.5 Gols`,
+                                          jogador
+                                        )}
+                                      >
+                                        <div className="text-center">
+                                          <div className="text-xs">+2.5</div>
+                                          <div className="font-bold">{jogadorOdds.gols_2_5.toFixed(2)}</div>
+                                        </div>
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
 
                                 {/* Seção de Assistências */}
-                                <div>
-                                  <h5 className="font-medium text-sm mb-2 text-purple-600">Assistências</h5>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isOwnPlayer}
-                                      onClick={() => adicionarSelecao(
-                                        'MERCADO_JOGADOR',
-                                        `ASSIST_MAIS_0.5_${jogador.id}`,
-                                        jogadorOdds.assistencias_0_5,
-                                        `${jogador.jogador} +0.5 Assist`,
-                                        jogador
-                                      )}
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-xs">+0.5</div>
-                                        <div className="font-bold">{jogadorOdds.assistencias_0_5.toFixed(2)}</div>
-                                      </div>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isOwnPlayer}
-                                      onClick={() => adicionarSelecao(
-                                        'MERCADO_JOGADOR',
-                                        `ASSIST_MAIS_1.5_${jogador.id}`,
-                                        jogadorOdds.assistencias_1_5,
-                                        `${jogador.jogador} +1.5 Assist`,
-                                        jogador
-                                      )}
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-xs">+1.5</div>
-                                        <div className="font-bold">{jogadorOdds.assistencias_1_5.toFixed(2)}</div>
-                                      </div>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isOwnPlayer}
-                                      onClick={() => adicionarSelecao(
-                                        'MERCADO_JOGADOR',
-                                        `ASSIST_MAIS_2.5_${jogador.id}`,
-                                        jogadorOdds.assistencias_2_5,
-                                        `${jogador.jogador} +2.5 Assist`,
-                                        jogador
-                                      )}
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-xs">+2.5</div>
-                                        <div className="font-bold">{jogadorOdds.assistencias_2_5.toFixed(2)}</div>
-                                      </div>
-                                    </Button>
+                                {hasAssistencias && (
+                                  <div>
+                                    <h5 className="font-medium text-sm mb-2 text-purple-600">Assistências</h5>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isOwnPlayer}
+                                        onClick={() => adicionarSelecao(
+                                          'MERCADO_JOGADOR',
+                                          `ASSIST_MAIS_0.5_${jogador.id}`,
+                                          jogadorOdds.assistencias_0_5,
+                                          `${jogador.jogador} +0.5 Assist`,
+                                          jogador
+                                        )}
+                                      >
+                                        <div className="text-center">
+                                          <div className="text-xs">+0.5</div>
+                                          <div className="font-bold">{jogadorOdds.assistencias_0_5.toFixed(2)}</div>
+                                        </div>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isOwnPlayer}
+                                        onClick={() => adicionarSelecao(
+                                          'MERCADO_JOGADOR',
+                                          `ASSIST_MAIS_1.5_${jogador.id}`,
+                                          jogadorOdds.assistencias_1_5,
+                                          `${jogador.jogador} +1.5 Assist`,
+                                          jogador
+                                        )}
+                                      >
+                                        <div className="text-center">
+                                          <div className="text-xs">+1.5</div>
+                                          <div className="font-bold">{jogadorOdds.assistencias_1_5.toFixed(2)}</div>
+                                        </div>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isOwnPlayer}
+                                        onClick={() => adicionarSelecao(
+                                          'MERCADO_JOGADOR',
+                                          `ASSIST_MAIS_2.5_${jogador.id}`,
+                                          jogadorOdds.assistencias_2_5,
+                                          `${jogador.jogador} +2.5 Assist`,
+                                          jogador
+                                        )}
+                                      >
+                                        <div className="text-center">
+                                          <div className="text-xs">+2.5</div>
+                                          <div className="font-bold">{jogadorOdds.assistencias_2_5.toFixed(2)}</div>
+                                        </div>
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
 
-                                {/* Seção de Desarmes - apenas para jogadores com desarmes */}
-                                {jogador.desarmes > 0 && (
+                                {/* Seção de Desarmes */}
+                                {hasDesarmes && (
                                   <div>
                                     <h5 className="font-medium text-sm mb-2 text-orange-600">Desarmes</h5>
                                     <div className="grid grid-cols-3 gap-2">
@@ -490,8 +517,8 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
                                   </div>
                                 )}
 
-                                {/* Seção de Defesas - apenas para goleiros */}
-                                {jogador.defesas > 0 && (
+                                {/* Seção de Defesas */}
+                                {hasDefesas && (
                                   <div>
                                     <h5 className="font-medium text-sm mb-2 text-green-600">Defesas</h5>
                                     <div className="grid grid-cols-3 gap-2">
