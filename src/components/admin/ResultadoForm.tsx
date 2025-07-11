@@ -1,194 +1,134 @@
 
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
-interface ResultadoFormProps {
-  partida: Tables<"partidas">;
-  onResultadoSubmitted: () => void;
-}
-
-interface PlayerStats {
-  id: string;
-  jogador: string;
-  gols: number;
-  assistencias: number;
-  defesas: number;
-  desarmes: number;
-  faltas: number;
-}
-
-const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmitted }) => {
-  const [jogadores, setJogadores] = useState<PlayerStats[]>([]);
-  const [placarA, setPlacarA] = useState(0);
-  const [placarB, setPlacarB] = useState(0);
-  const [loading, setLoading] = useState(false);
+const ResultadoForm: React.FC = () => {
+  const { profile } = useAuth();
+  const [partidas, setPartidas] = useState<Tables<"partidas">[]>([]);
+  const [partidaSelecionada, setPartidaSelecionada] = useState<Tables<"partidas"> | null>(null);
+  const [resultados, setResultados] = useState<{ [key: string]: { gols: number; assistencias: number; desarmes: number; defesas: number; faltas: number } }>({});
+  const [placar, setPlacar] = useState({ timeA: 0, timeB: 0 });
+  const [processando, setProcessando] = useState(false);
 
   useEffect(() => {
-    loadJogadores();
-  }, []);
+    if (profile?.role === 'ADMIN') {
+      loadPartidas();
+    }
+  }, [profile]);
 
-  const loadJogadores = async () => {
+  const loadPartidas = async () => {
     try {
       const { data, error } = await supabase
-        .from('players')
+        .from('partidas')
         .select('*')
-        .neq('status', 'Lesionado')
-        .order('jogador');
+        .in('status', ['AGENDADA', 'AO_VIVO'])
+        .order('data_partida');
 
       if (error) throw error;
-
-      setJogadores(data?.map(player => ({
-        id: player.id,
-        jogador: player.jogador,
-        gols: 0,
-        assistencias: 0,
-        defesas: 0,
-        desarmes: 0,
-        faltas: 0
-      })) || []);
+      setPartidas(data || []);
     } catch (error) {
-      console.error('Erro ao carregar jogadores:', error);
-      toast.error('Erro ao carregar jogadores');
+      console.error('Erro ao carregar partidas:', error);
+      toast.error('Erro ao carregar partidas');
     }
   };
 
-  const updatePlayerStat = (playerId: string, stat: keyof PlayerStats, value: number) => {
-    if (stat === 'id' || stat === 'jogador') return;
-    
-    setJogadores(prev => prev.map(player => 
-      player.id === playerId 
-        ? { ...player, [stat]: Math.max(0, value) }
-        : player
-    ));
-  };
-
   const processarResultado = async () => {
-    setLoading(true);
+    if (!partidaSelecionada) {
+      toast.error('Selecione uma partida');
+      return;
+    }
+
+    setProcessando(true);
+    console.log('=== INICIANDO PROCESSAMENTO DO RESULTADO ===');
+    console.log('Partida ID:', partidaSelecionada.partida_id);
+    console.log('Placar:', `${placar.timeA}-${placar.timeB}`);
+    console.log('Status atual da partida:', partidaSelecionada.status);
+
     try {
-      console.log('=== INICIANDO PROCESSAMENTO DO RESULTADO ===');
-      console.log('Partida ID:', partida.partida_id);
-      console.log('Placar:', `${placarA}-${placarB}`);
-      
-      // Verificar se a partida existe e está no status correto
-      const { data: partidaAtual, error: partidaError } = await supabase
-        .from('partidas')
-        .select('*')
-        .eq('partida_id', partida.partida_id)
-        .single();
+      // Obter jogadores escalados
+      const jogadoresEscalados = [
+        ...(partidaSelecionada.time_a_jogadores || []),
+        ...(partidaSelecionada.time_b_jogadores || [])
+      ];
 
-      if (partidaError || !partidaAtual) {
-        throw new Error('Partida não encontrada');
-      }
-
-      console.log('Status atual da partida:', partidaAtual.status);
-
-      // Obter escalações da partida
-      const escalacaoA = partida.time_a_jogadores || [];
-      const escalacaoB = partida.time_b_jogadores || [];
-      const todosJogadoresEscalados = [...escalacaoA, ...escalacaoB];
-      
-      console.log('Jogadores escalados:', todosJogadoresEscalados);
+      console.log('Jogadores escalados:', jogadoresEscalados);
 
       // Atualizar estatísticas dos jogadores
-      for (const playerStats of jogadores) {
-        const hasStats = playerStats.gols > 0 || playerStats.assistencias > 0 || 
-                        playerStats.defesas > 0 || playerStats.desarmes > 0 || playerStats.faltas > 0;
+      for (const jogadorId of jogadoresEscalados) {
+        const stats = resultados[jogadorId] || { gols: 0, assistencias: 0, desarmes: 0, defesas: 0, faltas: 0 };
         
-        const jogouPartida = todosJogadoresEscalados.includes(playerStats.id);
+        console.log(`Atualizando estatísticas de ${jogadorId}:`, stats);
 
-        if (hasStats || jogouPartida) {
-          console.log(`Atualizando estatísticas de ${playerStats.jogador}:`, {
-            hasStats,
-            jogouPartida,
-            stats: playerStats
-          });
+        const { error: updateError } = await supabase
+          .from('players')
+          .update({
+            jogos: supabase.sql`jogos + 1`,
+            gols: supabase.sql`gols + ${stats.gols}`,
+            assistencias: supabase.sql`assistencias + ${stats.assistencias}`,
+            desarmes: supabase.sql`desarmes + ${stats.desarmes}`,
+            defesas: supabase.sql`defesas + ${stats.defesas}`,
+            faltas: supabase.sql`faltas + ${stats.faltas}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', jogadorId);
 
-          const { data: currentPlayer } = await supabase
-            .from('players')
-            .select('*')
-            .eq('id', playerStats.id)
-            .single();
-
-          if (currentPlayer) {
-            const novoJogos = jogouPartida ? currentPlayer.jogos + 1 : currentPlayer.jogos;
-            
-            const { error } = await supabase
-              .from('players')
-              .update({
-                gols: currentPlayer.gols + playerStats.gols,
-                assistencias: currentPlayer.assistencias + playerStats.assistencias,
-                defesas: currentPlayer.defesas + playerStats.defesas,
-                desarmes: currentPlayer.desarmes + playerStats.desarmes,
-                faltas: currentPlayer.faltas + playerStats.faltas,
-                jogos: novoJogos,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', playerStats.id);
-
-            if (error) {
-              console.error(`Erro ao atualizar jogador ${playerStats.jogador}:`, error);
-              throw error;
-            }
-            
-            console.log(`Jogador ${playerStats.jogador} atualizado com sucesso`);
-          }
+        if (updateError) {
+          console.error(`Erro ao atualizar jogador ${jogadorId}:`, updateError);
+          throw updateError;
         }
+
+        console.log(`Jogador ${jogadorId} atualizado com sucesso`);
       }
 
-      // Atualizar resultado da partida
-      const { error: partidaUpdateError } = await supabase
+      // Atualizar partida como finalizada
+      const { error: partidaError } = await supabase
         .from('partidas')
         .update({
-          resultado_final: `${placarA}-${placarB}`,
-          status: 'FINALIZADA'
+          status: 'FINALIZADA',
+          resultado_final: `${placar.timeA}-${placar.timeB}`
         })
-        .eq('partida_id', partida.partida_id);
+        .eq('partida_id', partidaSelecionada.partida_id);
 
-      if (partidaUpdateError) throw partidaUpdateError;
-
+      if (partidaError) throw partidaError;
       console.log('Partida marcada como finalizada');
 
-      // Aguardar um pouco para garantir que as atualizações foram processadas
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       // Processar apostas
-      await processarApostas();
+      await processarApostas(partidaSelecionada.partida_id, jogadoresEscalados);
 
       toast.success('Resultado processado com sucesso!');
-      onResultadoSubmitted();
+      setPartidaSelecionada(null);
+      setResultados({});
+      setPlacar({ timeA: 0, timeB: 0 });
+      loadPartidas();
+
     } catch (error) {
       console.error('Erro ao processar resultado:', error);
       toast.error('Erro ao processar resultado');
     } finally {
-      setLoading(false);
+      setProcessando(false);
     }
   };
 
-  const processarApostas = async () => {
+  const processarApostas = async (partidaId: number, jogadoresEscalados: string[]) => {
+    console.log('=== INICIANDO PROCESSAMENTO DE APOSTAS ===');
+    console.log('Buscando seleções para partida_id:', partidaId);
+
     try {
-      console.log('=== INICIANDO PROCESSAMENTO DE APOSTAS ===');
-      console.log('Buscando seleções para partida_id:', partida.partida_id);
-      
-      // Buscar todas as seleções pendentes para esta partida com mais detalhes
+      // Buscar seleções pendentes para esta partida
       const { data: selecoes, error: selecoesError } = await supabase
         .from('selecoes')
         .select(`
           *,
-          bilhetes!inner (
-            bilhete_id,
-            user_id,
-            status_bilhete,
-            valor_apostado,
-            odd_total
-          )
+          bilhetes!inner(*)
         `)
-        .eq('partida_id', partida.partida_id)
+        .eq('partida_id', partidaId)
         .eq('status_selecao', 'PENDENTE');
 
       if (selecoesError) {
@@ -204,293 +144,267 @@ const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmi
         return;
       }
 
+      const selecoesParaAtualizar: Array<{
+        selecao_id: number;
+        status: 'GANHA' | 'PERDIDA';
+      }> = [];
+
+      const bilhetesParaAtualizar = new Map<number, {
+        bilhete_id: number;
+        todas_ganhas: boolean;
+        alguma_perdida: boolean;
+      }>();
+
       // Processar cada seleção
       for (const selecao of selecoes) {
-        let isGanha = false;
+        console.log(`Processando seleção ${selecao.selecao_id}:`, {
+          categoria: selecao.categoria_aposta,
+          detalhe: selecao.detalhe_aposta,
+          jogador_alvo: selecao.jogador_alvo_id
+        });
 
-        console.log('=== PROCESSANDO SELEÇÃO ===');
-        console.log('Seleção ID:', selecao.selecao_id);
-        console.log('Categoria:', selecao.categoria_aposta);
-        console.log('Detalhe original:', selecao.detalhe_aposta);
-        console.log('Jogador alvo:', selecao.jogador_alvo_id);
+        let statusSelecao: 'GANHA' | 'PERDIDA' = 'PERDIDA';
 
-        // Verificar resultado baseado no tipo de aposta
-        switch (selecao.categoria_aposta) {
-          case 'RESULTADO_PARTIDA':
-            console.log('Processando aposta de resultado da partida');
-            console.log('Placar:', `${placarA}-${placarB}`);
+        if (selecao.categoria_aposta === 'RESULTADO_PARTIDA') {
+          // Processar apostas de resultado
+          if (selecao.detalhe_aposta === 'VITORIA_A' && placar.timeA > placar.timeB) {
+            statusSelecao = 'GANHA';
+          } else if (selecao.detalhe_aposta === 'VITORIA_B' && placar.timeB > placar.timeA) {
+            statusSelecao = 'GANHA';
+          } else if (selecao.detalhe_aposta === 'EMPATE' && placar.timeA === placar.timeB) {
+            statusSelecao = 'GANHA';
+          }
+        } else if (selecao.categoria_aposta === 'MERCADO_JOGADOR' && selecao.jogador_alvo_id) {
+          // Processar apostas de jogador
+          const stats = resultados[selecao.jogador_alvo_id];
+          if (stats) {
+            const detalhe = selecao.detalhe_aposta;
             
-            if (selecao.detalhe_aposta === 'VITORIA_A' && placarA > placarB) {
-              isGanha = true;
-              console.log('Vitória Time A: GANHA');
-            } else if (selecao.detalhe_aposta === 'VITORIA_B' && placarB > placarA) {
-              isGanha = true;
-              console.log('Vitória Time B: GANHA');
-            } else if (selecao.detalhe_aposta === 'EMPATE' && placarA === placarB) {
-              isGanha = true;
-              console.log('Empate: GANHA');
-            } else {
-              console.log('Resultado da partida: PERDIDA');
-            }
-            break;
-          
-          case 'MERCADO_JOGADOR':
-            if (selecao.jogador_alvo_id) {
-              const playerStats = jogadores.find(p => p.id === selecao.jogador_alvo_id);
-              if (playerStats) {
-                console.log(`Processando aposta de jogador: ${playerStats.jogador}`);
-                console.log('Estatísticas do jogador:', playerStats);
-
-                // Parsing mais robusto do detalhe da aposta
-                const detalhe = selecao.detalhe_aposta;
-                console.log('Analisando detalhe:', detalhe);
-
-                // Verificar diferentes tipos de apostas de jogador
-                if (detalhe.includes('GOLS_MAIS_0.5')) {
-                  isGanha = playerStats.gols >= 1;
-                  console.log(`Gols +0.5: ${playerStats.gols} gols -> ${isGanha ? 'GANHA' : 'PERDIDA'}`);
-                } else if (detalhe.includes('GOLS_MAIS_1.5')) {
-                  isGanha = playerStats.gols >= 2;
-                  console.log(`Gols +1.5: ${playerStats.gols} gols -> ${isGanha ? 'GANHA' : 'PERDIDA'}`);
-                } else if (detalhe.includes('ASSIST_MAIS_0.5')) {
-                  isGanha = playerStats.assistencias >= 1;
-                  console.log(`Assistências +0.5: ${playerStats.assistencias} assistências -> ${isGanha ? 'GANHA' : 'PERDIDA'}`);
-                } else if (detalhe.includes('DESARMES_MAIS_1.5')) {
-                  isGanha = playerStats.desarmes >= 2;
-                  console.log(`Desarmes +1.5: ${playerStats.desarmes} desarmes -> ${isGanha ? 'GANHA' : 'PERDIDA'}`);
-                } else if (detalhe.includes('DEFESAS_MAIS_2.5')) {
-                  isGanha = playerStats.defesas >= 3;
-                  console.log(`Defesas +2.5: ${playerStats.defesas} defesas -> ${isGanha ? 'GANHA' : 'PERDIDA'}`);
-                } else {
-                  console.log('Tipo de aposta de jogador não reconhecido:', detalhe);
-                }
-              } else {
-                console.log('Jogador não encontrado nas estatísticas:', selecao.jogador_alvo_id);
+            if (detalhe.includes('GOLS_MAIS_')) {
+              const limite = parseFloat(detalhe.split('_')[2]);
+              if (stats.gols > limite) {
+                statusSelecao = 'GANHA';
+              }
+            } else if (detalhe.includes('ASSIST_MAIS_')) {
+              const limite = parseFloat(detalhe.split('_')[2]);
+              if (stats.assistencias > limite) {
+                statusSelecao = 'GANHA';
+              }
+            } else if (detalhe.includes('DESARMES_MAIS_')) {
+              const limite = parseFloat(detalhe.split('_')[2]);
+              if (stats.desarmes > limite) {
+                statusSelecao = 'GANHA';
+              }
+            } else if (detalhe.includes('DEFESAS_MAIS_')) {
+              const limite = parseFloat(detalhe.split('_')[2]);
+              if (stats.defesas > limite) {
+                statusSelecao = 'GANHA';
               }
             }
-            break;
-
-          default:
-            console.log('Categoria de aposta não reconhecida:', selecao.categoria_aposta);
+          }
         }
 
-        const statusFinal = isGanha ? 'GANHA' : 'PERDIDA';
-        console.log(`Resultado final da seleção ${selecao.selecao_id}: ${statusFinal}`);
+        console.log(`Resultado da seleção ${selecao.selecao_id}: ${statusSelecao}`);
 
-        // Atualizar status da seleção
+        selecoesParaAtualizar.push({
+          selecao_id: selecao.selecao_id,
+          status: statusSelecao
+        });
+
+        // Agrupar por bilhete para processar status do bilhete
+        const bilheteId = selecao.bilhete_id;
+        if (!bilhetesParaAtualizar.has(bilheteId)) {
+          bilhetesParaAtualizar.set(bilheteId, {
+            bilhete_id: bilheteId,
+            todas_ganhas: true,
+            alguma_perdida: false
+          });
+        }
+
+        const bilheteStatus = bilhetesParaAtualizar.get(bilheteId)!;
+        if (statusSelecao === 'PERDIDA') {
+          bilheteStatus.todas_ganhas = false;
+          bilheteStatus.alguma_perdida = true;
+        }
+      }
+
+      // Atualizar status das seleções
+      for (const selecao of selecoesParaAtualizar) {
         const { error: updateError } = await supabase
           .from('selecoes')
-          .update({ status_selecao: statusFinal })
+          .update({ status_selecao: selecao.status })
           .eq('selecao_id', selecao.selecao_id);
 
         if (updateError) {
-          console.error('Erro ao atualizar seleção:', updateError);
-          throw updateError;
+          console.error(`Erro ao atualizar seleção ${selecao.selecao_id}:`, updateError);
+        } else {
+          console.log(`Seleção ${selecao.selecao_id} atualizada para ${selecao.status}`);
         }
-
-        console.log(`Seleção ${selecao.selecao_id} atualizada para ${statusFinal}`);
       }
 
-      // Processar bilhetes únicos
-      const bilhetesUnicos = [...new Set(selecoes.map(s => s.bilhete_id))];
-      
-      console.log('=== PROCESSANDO BILHETES ===');
-      console.log('Bilhetes únicos encontrados:', bilhetesUnicos.length);
-
-      for (const bilheteId of bilhetesUnicos) {
-        console.log(`Processando bilhete ${bilheteId}`);
-
-        // Buscar todas as seleções deste bilhete
-        const { data: selecoesDoBlhete, error: selecoesError } = await supabase
-          .from('selecoes')
-          .select('status_selecao')
+      // Atualizar status dos bilhetes
+      for (const [bilheteId, bilheteInfo] of bilhetesParaAtualizar) {
+        const statusBilhete = bilheteInfo.todas_ganhas ? 'GANHO' : 'PERDIDO';
+        
+        const { error: updateError } = await supabase
+          .from('bilhetes')
+          .update({ status_bilhete: statusBilhete })
           .eq('bilhete_id', bilheteId);
 
-        if (selecoesError) {
-          console.error('Erro ao buscar seleções do bilhete:', selecoesError);
-          continue;
-        }
-
-        console.log(`Seleções do bilhete ${bilheteId}:`, selecoesDoBlhete);
-
-        const todasGanhas = selecoesDoBlhete?.every(s => s.status_selecao === 'GANHA');
-        const algumaPendente = selecoesDoBlhete?.some(s => s.status_selecao === 'PENDENTE');
-        
-        // Só finalizar o bilhete se não houver seleções pendentes
-        if (!algumaPendente) {
-          const statusBilhete: 'GANHO' | 'PERDIDO' = todasGanhas ? 'GANHO' : 'PERDIDO';
-
-          console.log(`Bilhete ${bilheteId}: ${statusBilhete} (todas ganhas: ${todasGanhas})`);
-
-          // Atualizar status do bilhete
-          const { error: bilheteError } = await supabase
-            .from('bilhetes')
-            .update({ status_bilhete: statusBilhete })
-            .eq('bilhete_id', bilheteId);
-
-          if (bilheteError) {
-            console.error('Erro ao atualizar bilhete:', bilheteError);
-            continue;
-          }
-
-          // Se ganhou, pagar o prêmio
-          if (statusBilhete === 'GANHO') {
-            const { data: bilhete } = await supabase
-              .from('bilhetes')
-              .select('user_id, valor_apostado, odd_total')
-              .eq('bilhete_id', bilheteId)
-              .single();
-
-            if (bilhete) {
-              const premio = bilhete.valor_apostado * bilhete.odd_total;
-              
-              console.log(`Pagando prêmio de ${premio} para usuário ${bilhete.user_id}`);
-              
-              const { data: usuario } = await supabase
-                .from('usuarios')
-                .select('saldo_ficticio')
-                .eq('user_id', bilhete.user_id)
-                .single();
-
-              if (usuario) {
-                const { error: saldoError } = await supabase
-                  .from('usuarios')
-                  .update({ saldo_ficticio: usuario.saldo_ficticio + premio })
-                  .eq('user_id', bilhete.user_id);
-                
-                if (saldoError) {
-                  console.error('Erro ao atualizar saldo:', saldoError);
-                } else {
-                  console.log(`Saldo atualizado para usuário ${bilhete.user_id}`);
-                }
-              }
-            }
-          }
+        if (updateError) {
+          console.error(`Erro ao atualizar bilhete ${bilheteId}:`, updateError);
         } else {
-          console.log(`Bilhete ${bilheteId} ainda tem seleções pendentes`);
+          console.log(`Bilhete ${bilheteId} atualizado para ${statusBilhete}`);
         }
       }
-      
+
       console.log('=== PROCESSAMENTO DE APOSTAS CONCLUÍDO ===');
+
     } catch (error) {
-      console.error('Erro ao processar apostas:', error);
+      console.error('Erro no processamento de apostas:', error);
       throw error;
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Placar */}
+  const handleResultadoChange = (jogadorId: string, campo: string, valor: number) => {
+    setResultados(prev => ({
+      ...prev,
+      [jogadorId]: {
+        ...prev[jogadorId],
+        [campo]: valor
+      }
+    }));
+  };
+
+  if (profile?.role !== 'ADMIN') {
+    return (
       <Card>
-        <CardHeader>
-          <CardTitle>Placar Final</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 items-center">
-            <div className="text-center">
-              <Label>{partida.time_a_nome}</Label>
-              <Input
-                type="number"
-                value={placarA}
-                onChange={(e) => setPlacarA(parseInt(e.target.value) || 0)}
-                min="0"
-                className="text-center text-2xl font-bold mt-2"
-              />
-            </div>
-            <div className="text-center text-2xl font-bold">X</div>
-            <div className="text-center">
-              <Label>{partida.time_b_nome}</Label>
-              <Input
-                type="number"
-                value={placarB}
-                onChange={(e) => setPlacarB(parseInt(e.target.value) || 0)}
-                min="0"
-                className="text-center text-2xl font-bold mt-2"
-              />
-            </div>
-          </div>
+        <CardContent className="p-6">
+          <p className="text-center text-gray-600">Acesso restrito para administradores.</p>
         </CardContent>
       </Card>
+    );
+  }
 
-      {/* Estatísticas dos Jogadores */}
+  return (
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Estatísticas dos Jogadores</CardTitle>
+          <CardTitle>Processar Resultado da Partida</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {jogadores.map((player) => (
-              <div key={player.id} className="grid grid-cols-1 md:grid-cols-7 gap-2 items-center p-4 border rounded-lg">
-                <div className="font-medium">{player.jogador}</div>
-                
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="partida">Selecionar Partida</Label>
+            <select
+              id="partida"
+              className="w-full mt-1 p-2 border rounded-md"
+              value={partidaSelecionada?.partida_id || ''}
+              onChange={(e) => {
+                const partida = partidas.find(p => p.partida_id === Number(e.target.value));
+                setPartidaSelecionada(partida || null);
+              }}
+            >
+              <option value="">Selecione uma partida</option>
+              {partidas.map(partida => (
+                <option key={partida.partida_id} value={partida.partida_id}>
+                  {partida.time_a_nome} vs {partida.time_b_nome} - {new Date(partida.data_partida).toLocaleString('pt-BR')}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {partidaSelecionada && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs">Gols</Label>
+                  <Label htmlFor="placarA">Placar {partidaSelecionada.time_a_nome}</Label>
                   <Input
+                    id="placarA"
                     type="number"
-                    value={player.gols}
-                    onChange={(e) => updatePlayerStat(player.id, 'gols', parseInt(e.target.value) || 0)}
                     min="0"
-                    className="text-center"
+                    value={placar.timeA}
+                    onChange={(e) => setPlacar(prev => ({ ...prev, timeA: Number(e.target.value) }))}
                   />
                 </div>
-
                 <div>
-                  <Label className="text-xs">Assist.</Label>
+                  <Label htmlFor="placarB">Placar {partidaSelecionada.time_b_nome}</Label>
                   <Input
+                    id="placarB"
                     type="number"
-                    value={player.assistencias}
-                    onChange={(e) => updatePlayerStat(player.id, 'assistencias', parseInt(e.target.value) || 0)}
                     min="0"
-                    className="text-center"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Defesas</Label>
-                  <Input
-                    type="number"
-                    value={player.defesas}
-                    onChange={(e) => updatePlayerStat(player.id, 'defesas', parseInt(e.target.value) || 0)}
-                    min="0"
-                    className="text-center"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Desarmes</Label>
-                  <Input
-                    type="number"
-                    value={player.desarmes}
-                    onChange={(e) => updatePlayerStat(player.id, 'desarmes', parseInt(e.target.value) || 0)}
-                    min="0"
-                    className="text-center"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Faltas</Label>
-                  <Input
-                    type="number"
-                    value={player.faltas}
-                    onChange={(e) => updatePlayerStat(player.id, 'faltas', parseInt(e.target.value) || 0)}
-                    min="0"
-                    className="text-center"
+                    value={placar.timeB}
+                    onChange={(e) => setPlacar(prev => ({ ...prev, timeB: Number(e.target.value) }))}
                   />
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Estatísticas dos Jogadores</h3>
+                {[...(partidaSelecionada.time_a_jogadores || []), ...(partidaSelecionada.time_b_jogadores || [])].map(jogadorId => (
+                  <div key={jogadorId} className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-2">Jogador ID: {jogadorId}</h4>
+                    <div className="grid grid-cols-5 gap-2">
+                      <div>
+                        <Label>Gols</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={resultados[jogadorId]?.gols || 0}
+                          onChange={(e) => handleResultadoChange(jogadorId, 'gols', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Assistências</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={resultados[jogadorId]?.assistencias || 0}
+                          onChange={(e) => handleResultadoChange(jogadorId, 'assistencias', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Desarmes</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={resultados[jogadorId]?.desarmes || 0}
+                          onChange={(e) => handleResultadoChange(jogadorId, 'desarmes', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Defesas</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={resultados[jogadorId]?.defesas || 0}
+                          onChange={(e) => handleResultadoChange(jogadorId, 'defesas', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Faltas</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={resultados[jogadorId]?.faltas || 0}
+                          onChange={(e) => handleResultadoChange(jogadorId, 'faltas', Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button 
+                onClick={processarResultado} 
+                className="w-full"
+                disabled={processando}
+              >
+                {processando ? 'Processando...' : 'Processar Resultado'}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
-
-      <Button 
-        onClick={processarResultado} 
-        disabled={loading}
-        className="w-full bg-green-600 hover:bg-green-700"
-        size="lg"
-      >
-        {loading ? 'Processando...' : 'Processar Resultado e Finalizar Partida'}
-      </Button>
     </div>
   );
 };

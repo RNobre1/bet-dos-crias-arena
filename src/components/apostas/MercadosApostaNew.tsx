@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,9 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 import SelecaoPartida from './SelecaoPartida';
 import BilheteAposta from './BilheteAposta';
 import HistoricoApostas from './HistoricoApostas';
+import ConflictDialog from './ConflictDialog';
 import { calculateOdds } from "@/utils/oddsCalculator";
 import { TrendingUp } from "lucide-react";
 import { Selecao } from "@/types/apostas";
+import { validateBetConflicts, ConflictResult } from "@/utils/betConflictValidator";
 
 interface MercadosApostaNewProps {
   jogadores: Tables<"players">[];
@@ -22,6 +23,15 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
   const [partidaSelecionada, setPartidaSelecionada] = useState<Tables<"partidas"> | null>(null);
   const [selecoes, setSelecoes] = useState<Selecao[]>([]);
   const [jogadorVinculado, setJogadorVinculado] = useState<Tables<"players"> | null>(null);
+  const [conflictDialog, setConflictDialog] = useState<{
+    isOpen: boolean;
+    conflict: ConflictResult;
+    pendingSelection: Omit<Selecao, 'id'> | null;
+  }>({
+    isOpen: false,
+    conflict: { hasConflict: false },
+    pendingSelection: null
+  });
 
   useEffect(() => {
     if (user) {
@@ -72,21 +82,7 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
       return;
     }
 
-    // Verificar se a seleção já existe
-    const jaExiste = selecoes.some(s => 
-      s.categoria === categoria && 
-      s.detalhe === detalhe && 
-      s.jogador_id === jogadorId &&
-      s.partida_id === partidaSelecionada.partida_id
-    );
-
-    if (jaExiste) {
-      toast.error('Esta seleção já foi adicionada');
-      return;
-    }
-
-    const novaSelecao: Selecao = {
-      id: `${Date.now()}_${Math.random()}`,
+    const novaSelecao: Omit<Selecao, 'id'> = {
       partida_id: partidaSelecionada.partida_id,
       categoria,
       detalhe,
@@ -95,8 +91,57 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
       jogador_id: jogadorId || null
     };
 
-    setSelecoes([...selecoes, novaSelecao]);
+    // Validar conflitos
+    const conflictResult = validateBetConflicts(novaSelecao, selecoes);
+
+    if (conflictResult.hasConflict) {
+      setConflictDialog({
+        isOpen: true,
+        conflict: conflictResult,
+        pendingSelection: novaSelecao
+      });
+      return;
+    }
+
+    // Adicionar seleção normalmente se não há conflitos
+    const selecaoCompleta: Selecao = {
+      ...novaSelecao,
+      id: `${Date.now()}_${Math.random()}`
+    };
+
+    setSelecoes([...selecoes, selecaoCompleta]);
     toast.success('Seleção adicionada ao bilhete');
+  };
+
+  const handleConflictResolution = (action: 'replace' | 'cancel') => {
+    if (action === 'cancel') {
+      setConflictDialog({
+        isOpen: false,
+        conflict: { hasConflict: false },
+        pendingSelection: null
+      });
+      return;
+    }
+
+    if (action === 'replace' && conflictDialog.pendingSelection && conflictDialog.conflict.existingSelection) {
+      // Remover seleção conflitante
+      const selecoesAtualizadas = selecoes.filter(s => s.id !== conflictDialog.conflict.existingSelection?.id);
+      
+      // Adicionar nova seleção
+      const novaSelecao: Selecao = {
+        ...conflictDialog.pendingSelection,
+        id: `${Date.now()}_${Math.random()}`
+      };
+
+      setSelecoes([...selecoesAtualizadas, novaSelecao]);
+      toast.success('Seleção substituída no bilhete');
+    }
+
+    setConflictDialog({
+      isOpen: false,
+      conflict: { hasConflict: false },
+      pendingSelection: null
+    });
   };
 
   const removerSelecao = (id: string) => {
@@ -128,7 +173,6 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
   }
 
   const calcularOddsJogador = (jogador: Tables<"players">) => {
-    // Calcular odds baseado nas estatísticas do jogador
     const golsPorJogo = jogador.jogos > 0 ? jogador.gols / jogador.jogos : 0;
     const assistPorJogo = jogador.jogos > 0 ? jogador.assistencias / jogador.jogos : 0;
     const desarmesPorJogo = jogador.jogos > 0 ? jogador.desarmes / jogador.jogos : 0;
@@ -191,7 +235,6 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
   const renderMercadosJogador = () => {
     if (!partidaSelecionada) return null;
 
-    // Obter jogadores escalados para esta partida
     const jogadoresEscalados = [
       ...(partidaSelecionada.time_a_jogadores || []),
       ...(partidaSelecionada.time_b_jogadores || [])
@@ -306,6 +349,12 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
       </div>
 
       <HistoricoApostas />
+
+      <ConflictDialog
+        isOpen={conflictDialog.isOpen}
+        conflict={conflictDialog.conflict}
+        onResolve={handleConflictResolution}
+      />
     </div>
   );
 };
