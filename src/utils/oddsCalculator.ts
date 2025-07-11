@@ -1,54 +1,97 @@
+
 import { Tables } from "@/integrations/supabase/types";
 
-const calculatePlayerNote = (player: Tables<"players">): number => {
-  let nota = 7; // Nota base
+export const calculatePlayerNote = (player: Tables<"players">): number => {
+  if (player.jogos === 0) return 5.0;
 
-  // Ajustes com base nas estatísticas
-  nota += player.gols * 0.5;
-  nota += player.assistencias * 0.3;
-  nota += player.desarmes * 0.1;
-  nota += player.defesas * 0.2;
+  // Impacto Ofensivo
+  const impactoOfensivo = ((player.gols * 2.0) + (player.assistencias * 1.0)) / player.jogos;
 
-  // Penalidades (opcional)
-  nota -= player.cartoes_amarelos * 0.1;
-  nota -= player.cartoes_vermelhos * 0.3;
+  // Impacto Defensivo
+  const impactoDefensivo = ((player.defesas * 1.5) + (player.desarmes * 1.0)) / player.jogos;
 
-  // Limitar a nota entre 0 e 10
-  return Math.max(0, Math.min(10, nota));
+  // Penalidade por Indisciplina
+  const penalidade = (player.faltas * 0.25) / player.jogos;
+
+  // Pontuação de Impacto Bruta
+  const pontuacaoBruta = Math.max(impactoOfensivo, impactoDefensivo) - penalidade;
+
+  // Converter para escala de 1-10 (simplificado)
+  const nota = Math.max(1.0, Math.min(10.0, 5.0 + (pontuacaoBruta * 2)));
+  
+  return Math.round(nota * 10) / 10; // Arredondar para 1 casa decimal
+};
+
+// Alias para compatibilidade
+export const calcularNotaJogador = calculatePlayerNote;
+
+export const calculatePositionScores = (player: Tables<"players">) => {
+  if (player.jogos === 0) {
+    return { goleiro: 0, atacante: 0, volante: 0 };
+  }
+
+  // Pontuação de Goleiro
+  const pontuacaoGoleiro = ((player.defesas * 2.0) - (player.faltas * 0.25) - 
+                           (player.gols * 0.5) - (player.assistencias * 0.25)) / player.jogos;
+
+  // Pontuação de Atacante
+  const pontuacaoAtacante = ((player.gols * 2.0) + (player.assistencias * 1.0) - 
+                            (player.faltas * 0.25)) / player.jogos;
+
+  // Pontuação de Volante
+  const pontuacaoVolante = ((player.gols * 0.5) + (player.assistencias * 1.5) + 
+                           (player.desarmes * 1.5) - (player.faltas * 0.25)) / player.jogos;
+
+  return {
+    goleiro: Math.max(0, pontuacaoGoleiro),
+    atacante: Math.max(0, pontuacaoAtacante),
+    volante: Math.max(0, pontuacaoVolante)
+  };
 };
 
 export const gerarEscalacoes = (jogadores: Tables<"players">[]) => {
   // Filtrar jogadores ativos e calcular a nota de cada um
   const jogadoresAtivos = jogadores
     .filter(jogador => jogador.status === 'Ativo')
-    .map(jogador => ({ ...jogador, nota: calculatePlayerNote(jogador) }));
+    .map(jogador => ({ ...jogador, notaCalculada: calculatePlayerNote(jogador) }));
 
   // Ordenar jogadores por nota (maior para menor)
-  jogadoresAtivos.sort((a, b) => b.nota - a.nota);
+  jogadoresAtivos.sort((a, b) => b.notaCalculada - a.notaCalculada);
 
-  // Separar por posição
-  const goleiros = jogadoresAtivos.filter(j => j.posicao === 'Goleiro');
-  const defensores = jogadoresAtivos.filter(j => j.posicao === 'Zagueiro' || j.posicao === 'Lateral');
-  const volantes = jogadoresAtivos.filter(j => j.posicao === 'Volante');
-  const atacantes = jogadoresAtivos.filter(j => j.posicao === 'Atacante');
+  // Como não temos posições específicas na tabela, vamos distribuir por aptidão
+  const jogadoresComPontuacao = jogadoresAtivos.map(jogador => ({
+    ...jogador,
+    positionScores: calculatePositionScores(jogador)
+  }));
 
-  // Escolher formação baseada na disponibilidade de jogadores
-  const formacaoA = { defensores: 4, volantes: 3, atacantes: 3 };
-  const formacaoB = { defensores: 4, volantes: 4, atacantes: 2 };
+  // Selecionar goleiros (melhores em defesa)
+  const goleiros = jogadoresComPontuacao
+    .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro)
+    .slice(0, 2);
 
-  // Montar times
+  // Selecionar atacantes (melhores em ataque)  
+  const atacantes = jogadoresComPontuacao
+    .filter(j => !goleiros.includes(j))
+    .sort((a, b) => b.positionScores.atacante - a.positionScores.atacante)
+    .slice(0, 4);
+
+  // Selecionar volantes (melhores em meio-campo)
+  const volantes = jogadoresComPontuacao
+    .filter(j => !goleiros.includes(j) && !atacantes.includes(j))
+    .sort((a, b) => b.positionScores.volante - a.positionScores.volante)
+    .slice(0, 4);
+
+  // Montar times balanceados
   const timeA = [
     goleiros[0],
-    ...defensores.slice(0, formacaoA.defensores),
-    ...volantes.slice(0, formacaoA.volantes),
-    ...atacantes.slice(0, formacaoA.atacantes)
+    ...atacantes.slice(0, 2),
+    ...volantes.slice(0, 2)
   ].filter(Boolean);
 
   const timeB = [
     goleiros[1],
-    ...defensores.slice(formacaoA.defensores, formacaoA.defensores + formacaoB.defensores),
-    ...volantes.slice(formacaoA.volantes, formacaoA.volantes + formacaoB.volantes),
-    ...atacantes.slice(formacaoA.atacantes, formacaoA.atacantes + formacaoB.atacantes)
+    ...atacantes.slice(2, 4),
+    ...volantes.slice(2, 4)
   ].filter(Boolean);
 
   // Reservas e lesionados
