@@ -301,7 +301,6 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
             selecoes={selecoes}
             onRemoverSelecao={removerSelecao}
             onLimparBilhete={limparBilhete}
-            onApostaFinalizada={loadPartidas}
           />
         </div>
       </div>
