@@ -2,15 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import PartidaForm from "./PartidaForm";
 import ResultadoForm from "./ResultadoForm";
-import { Calendar, Trophy, TrendingUp, Users } from "lucide-react";
+import { Calendar, Trophy, TrendingUp, Users, Clock } from "lucide-react";
 
 const AdminDashboard = () => {
   const [partidaAtiva, setPartidaAtiva] = useState<Tables<"partidas"> | null>(null);
+  const [todasPartidas, setTodasPartidas] = useState<Tables<"partidas">[]>([]);
   const [estatisticas, setEstatisticas] = useState({
     totalJogadores: 0,
     totalUsuarios: 0,
@@ -35,6 +37,14 @@ const AdminDashboard = () => {
 
       setPartidaAtiva(partida);
 
+      // Carregar todas as partidas
+      const { data: partidas } = await supabase
+        .from('partidas')
+        .select('*')
+        .order('data_partida', { ascending: false });
+
+      setTodasPartidas(partidas || []);
+
       // Carregar estatísticas
       const [
         { count: totalJogadores },
@@ -56,6 +66,33 @@ const AdminDashboard = () => {
       });
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
+    }
+  };
+
+  const finalizarPartida = async (partida: Tables<"partidas">) => {
+    try {
+      const { error } = await supabase
+        .from('partidas')
+        .update({ status: 'FINALIZADA' })
+        .eq('partida_id', partida.partida_id);
+
+      if (error) throw error;
+      
+      toast.success('Partida finalizada com sucesso!');
+      loadDashboardData();
+    } catch (error) {
+      console.error('Erro ao finalizar partida:', error);
+      toast.error('Erro ao finalizar partida');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'AGENDADA': return 'bg-blue-100 text-blue-800';
+      case 'AO_VIVO': return 'bg-green-100 text-green-800';
+      case 'FINALIZADA': return 'bg-gray-100 text-gray-800';
+      case 'ADIADA': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -121,6 +158,7 @@ const AdminDashboard = () => {
         <TabsList>
           <TabsTrigger value="partida">Gerenciar Partida</TabsTrigger>
           <TabsTrigger value="resultado">Inserir Resultado</TabsTrigger>
+          <TabsTrigger value="historico">Histórico de Partidas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="partida">
@@ -151,6 +189,52 @@ const AdminDashboard = () => {
               ) : (
                 <p className="text-gray-500">Não há partida ativa para inserir resultado.</p>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="historico">
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Partidas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {todasPartidas.map((partida) => (
+                  <div key={partida.partida_id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-semibold">
+                        {partida.time_a_nome} vs {partida.time_b_nome}
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        <span>{new Date(partida.data_partida).toLocaleString('pt-BR')}</span>
+                      </div>
+                      {partida.resultado_final && (
+                        <p className="text-sm font-medium text-green-600">
+                          Resultado: {partida.resultado_final}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(partida.status)}`}>
+                        {partida.status}
+                      </span>
+                      
+                      {(partida.status === 'AGENDADA' || partida.status === 'AO_VIVO') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => finalizarPartida(partida)}
+                        >
+                          Finalizar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

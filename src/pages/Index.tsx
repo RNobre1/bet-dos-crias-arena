@@ -5,18 +5,18 @@ import AuthForm from '@/components/auth/AuthForm';
 import PlayerSelection from '@/components/auth/PlayerSelection';
 import Navigation from '@/components/layout/Navigation';
 import TabelaClassificacao from '@/components/classificacao/TabelaClassificacao';
-import EscalacoesView from '@/components/escalacoes/EscalacoesView';
-import MercadosAposta from '@/components/apostas/MercadosAposta';
+import EscalacoesViewNew from '@/components/escalacoes/EscalacoesViewNew';
+import MercadosApostaNew from '@/components/apostas/MercadosApostaNew';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Loader2 } from 'lucide-react';
+import { recalcularTodasAsNotas } from '@/utils/playerNotesCalculatorNew';
 
 const AppContent = () => {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('classificacao');
   const [jogadores, setJogadores] = useState<Tables<"players">[]>([]);
-  const [partida, setPartida] = useState<Tables<"partidas"> | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -34,19 +34,21 @@ const AppContent = () => {
         .order('created_at');
 
       if (playersError) throw playersError;
-      setJogadores(playersData || []);
+      
+      if (playersData && playersData.length > 0) {
+        // Recalcular todas as notas quando carregar os dados
+        await recalcularTodasAsNotas(playersData);
+        
+        // Recarregar os dados atualizados
+        const { data: updatedPlayersData, error: updatedError } = await supabase
+          .from('players')
+          .select('*')
+          .order('nota', { ascending: false });
 
-      // Carregar próxima partida
-      const { data: partidaData, error: partidaError } = await supabase
-        .from('partidas')
-        .select('*')
-        .eq('status', 'AGENDADA')
-        .order('data_partida')
-        .limit(1)
-        .single();
-
-      if (!partidaError && partidaData) {
-        setPartida(partidaData);
+        if (updatedError) throw updatedError;
+        setJogadores(updatedPlayersData || []);
+      } else {
+        setJogadores([]);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -88,11 +90,9 @@ const AppContent = () => {
       case 'classificacao':
         return <TabelaClassificacao jogadores={jogadores} />;
       case 'escalacoes':
-        return <EscalacoesView jogadores={jogadores} />;
+        return <EscalacoesViewNew jogadores={jogadores} />;
       case 'apostas':
-        return <MercadosAposta jogadores={jogadores} partida={partida} />;
-      case 'historico':
-        return <div className="text-center p-8">Histórico em desenvolvimento...</div>;
+        return <MercadosApostaNew jogadores={jogadores} />;
       case 'admin':
         return <AdminDashboard />;
       default:
