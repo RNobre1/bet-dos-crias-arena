@@ -13,12 +13,19 @@ interface PartidaFormProps {
   onPartidaUpdate: () => void;
 }
 
+type StatusPartida = Tables<'partidas'>['status'];
+
 const PartidaForm: React.FC<PartidaFormProps> = ({ partidaAtiva, onPartidaUpdate }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    data_partida: string;
+    time_a_nome: string;
+    time_b_nome: string;
+    status: StatusPartida;
+  }>({
     data_partida: '',
     time_a_nome: '',
     time_b_nome: '',
-    status: 'AGENDADA' as const
+    status: 'AGENDADA'
   });
   const [loading, setLoading] = useState(false);
 
@@ -125,7 +132,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ partidaAtiva, onPartidaUpdate
 
         <div className="space-y-2">
           <Label>Status da Partida</Label>
-          <Select value={formData.status} onValueChange={(value: any) => setFormData({...formData, status: value})}>
+          <Select value={formData.status} onValueChange={(value: StatusPartida) => setFormData({...formData, status: value})}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

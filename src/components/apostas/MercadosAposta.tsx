@@ -9,17 +9,11 @@ import { generateTeams } from "@/utils/teamFormation";
 import { useAuth } from "@/hooks/useAuth";
 import BilheteAposta from "./BilheteAposta";
 import { Trophy, Calendar, Users } from "lucide-react";
+import { Selecao } from '@/types/apostas';
 
 interface MercadosApostaProps {
   jogadores: Tables<"players">[];
   partida: Tables<"partidas"> | null;
-}
-
-interface Selecao {
-  categoria: string;
-  detalhe: string;
-  odd: number;
-  jogadorAlvo?: Tables<"players">;
 }
 
 const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) => {
@@ -40,36 +34,52 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
     }
   }, [jogadores, partida]);
 
-  const adicionarSelecao = (selecao: Selecao) => {
+  const adicionarSelecao = (categoria: string, detalhe: string, odd: number, descricao: string, jogadorAlvo?: Tables<"players">) => {
+    if (!partida) return;
+    
     // Verificar se usuário não está apostando em si mesmo
-    if (selecao.jogadorAlvo && profile?.user_id) {
+    if (jogadorAlvo && profile?.user_id) {
       const jogadorDoUsuario = jogadores.find(j => j.user_id === profile.user_id);
-      if (jogadorDoUsuario && selecao.jogadorAlvo.id === jogadorDoUsuario.id) {
+      if (jogadorDoUsuario && jogadorAlvo.id === jogadorDoUsuario.id) {
         alert('Você não pode apostar em si mesmo!');
         return;
       }
     }
 
+    const novaSelecao: Selecao = {
+      id: crypto.randomUUID(),
+      partida_id: partida.partida_id,
+      categoria,
+      detalhe,
+      descricao,
+      odd,
+      jogador_id: jogadorAlvo?.id || null
+    };
+
     // Verificar conflitos (mesma categoria + detalhe)
     const conflito = selecoes.find(s => 
-      s.categoria === selecao.categoria && 
-      s.detalhe.split('_')[0] === selecao.detalhe.split('_')[0]
+      s.categoria === categoria && 
+      s.detalhe.split('_')[0] === detalhe.split('_')[0]
     );
 
     if (conflito) {
       // Substituir seleção conflitante
       setSelecoes(prev => prev.map(s => 
-        s.categoria === selecao.categoria && s.detalhe.split('_')[0] === selecao.detalhe.split('_')[0]
-          ? selecao 
+        s.categoria === categoria && s.detalhe.split('_')[0] === detalhe.split('_')[0]
+          ? novaSelecao 
           : s
       ));
     } else {
-      setSelecoes(prev => [...prev, selecao]);
+      setSelecoes(prev => [...prev, novaSelecao]);
     }
   };
 
-  const removerSelecao = (index: number) => {
-    setSelecoes(prev => prev.filter((_, i) => i !== index));
+  const removerSelecao = (id: string) => {
+    setSelecoes(prev => prev.filter(s => s.id !== id));
+  };
+
+  const limparBilhete = () => {
+    setSelecoes([]);
   };
 
   if (!partida) {
@@ -136,11 +146,12 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
               <Button
                 variant="outline"
                 className="flex flex-col p-4 h-auto"
-                onClick={() => adicionarSelecao({
-                  categoria: 'RESULTADO_PARTIDA',
-                  detalhe: 'VITORIA_A',
-                  odd: odds.resultado.timeA
-                })}
+                onClick={() => adicionarSelecao(
+                  'RESULTADO_PARTIDA',
+                  'VITORIA_A',
+                  odds.resultado.timeA,
+                  `${partida.time_a_nome} para Vencer`
+                )}
               >
                 <span className="text-sm">{partida.time_a_nome}</span>
                 <span className="text-lg font-bold">{odds.resultado.timeA.toFixed(2)}</span>
@@ -149,11 +160,12 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
               <Button
                 variant="outline"
                 className="flex flex-col p-4 h-auto"
-                onClick={() => adicionarSelecao({
-                  categoria: 'RESULTADO_PARTIDA',
-                  detalhe: 'EMPATE',
-                  odd: odds.resultado.empate
-                })}
+                onClick={() => adicionarSelecao(
+                  'RESULTADO_PARTIDA',
+                  'EMPATE',
+                  odds.resultado.empate,
+                  'Empate'
+                )}
               >
                 <span className="text-sm">Empate</span>
                 <span className="text-lg font-bold">{odds.resultado.empate.toFixed(2)}</span>
@@ -162,11 +174,12 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
               <Button
                 variant="outline"
                 className="flex flex-col p-4 h-auto"
-                onClick={() => adicionarSelecao({
-                  categoria: 'RESULTADO_PARTIDA',
-                  detalhe: 'VITORIA_B',
-                  odd: odds.resultado.timeB
-                })}
+                onClick={() => adicionarSelecao(
+                  'RESULTADO_PARTIDA',
+                  'VITORIA_B',
+                  odds.resultado.timeB,
+                  `${partida.time_b_nome} para Vencer`
+                )}
               >
                 <span className="text-sm">{partida.time_b_nome}</span>
                 <span className="text-lg font-bold">{odds.resultado.timeB.toFixed(2)}</span>
@@ -209,12 +222,13 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
                         variant="outline"
                         size="sm"
                         disabled={isOwnPlayer}
-                        onClick={() => adicionarSelecao({
-                          categoria: 'MERCADO_JOGADOR',
-                          detalhe: `GOLS_MAIS_0.5_${jogador.id}`,
-                          odd: jogadorOdds.gols_0_5,
-                          jogadorAlvo: jogador
-                        })}
+                        onClick={() => adicionarSelecao(
+                          'MERCADO_JOGADOR',
+                          `GOLS_MAIS_0.5_${jogador.id}`,
+                          jogadorOdds.gols_0_5,
+                          `${jogador.jogador} +0.5 Gols`,
+                          jogador
+                        )}
                       >
                         <div className="text-center">
                           <div className="text-xs">+0.5 Gols</div>
@@ -227,12 +241,13 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
                         variant="outline"
                         size="sm"
                         disabled={isOwnPlayer}
-                        onClick={() => adicionarSelecao({
-                          categoria: 'MERCADO_JOGADOR',
-                          detalhe: `ASSIST_MAIS_0.5_${jogador.id}`,
-                          odd: jogadorOdds.assistencias_0_5,
-                          jogadorAlvo: jogador
-                        })}
+                        onClick={() => adicionarSelecao(
+                          'MERCADO_JOGADOR',
+                          `ASSIST_MAIS_0.5_${jogador.id}`,
+                          jogadorOdds.assistencias_0_5,
+                          `${jogador.jogador} +0.5 Assist`,
+                          jogador
+                        )}
                       >
                         <div className="text-center">
                           <div className="text-xs">+0.5 Assist</div>
@@ -246,12 +261,13 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
                           variant="outline"
                           size="sm"
                           disabled={isOwnPlayer}
-                          onClick={() => adicionarSelecao({
-                            categoria: 'MERCADO_JOGADOR',
-                            detalhe: `DESARMES_MAIS_1.5_${jogador.id}`,
-                            odd: jogadorOdds.desarmes_1_5,
-                            jogadorAlvo: jogador
-                          })}
+                          onClick={() => adicionarSelecao(
+                            'MERCADO_JOGADOR',
+                            `DESARMES_MAIS_1.5_${jogador.id}`,
+                            jogadorOdds.desarmes_1_5,
+                            `${jogador.jogador} +1.5 Desarmes`,
+                            jogador
+                          )}
                         >
                           <div className="text-center">
                             <div className="text-xs">+1.5 Desarmes</div>
@@ -266,12 +282,13 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
                           variant="outline"
                           size="sm"
                           disabled={isOwnPlayer}
-                          onClick={() => adicionarSelecao({
-                            categoria: 'MERCADO_JOGADOR',
-                            detalhe: `DEFESAS_MAIS_2.5_${jogador.id}`,
-                            odd: jogadorOdds.defesas_2_5,
-                            jogadorAlvo: jogador
-                          })}
+                          onClick={() => adicionarSelecao(
+                            'MERCADO_JOGADOR',
+                            `DEFESAS_MAIS_2.5_${jogador.id}`,
+                            jogadorOdds.defesas_2_5,
+                            `${jogador.jogador} +2.5 Defesas`,
+                            jogador
+                          )}
                         >
                           <div className="text-center">
                             <div className="text-xs">+2.5 Defesas</div>
@@ -292,8 +309,8 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
       <div className="lg:col-span-1">
         <BilheteAposta 
           selecoes={selecoes}
-          onRemoveSelecao={removerSelecao}
-          partida={partida}
+          onRemoverSelecao={removerSelecao}
+          onLimparBilhete={limparBilhete}
         />
       </div>
     </div>

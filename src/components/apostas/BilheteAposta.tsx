@@ -8,7 +8,7 @@ import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import type { Selecao } from './MercadosAposta';
+import type { Selecao } from '@/types/apostas';
 
 interface BilheteApostaProps {
   selecoes: Selecao[];

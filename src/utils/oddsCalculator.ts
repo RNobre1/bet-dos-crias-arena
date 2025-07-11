@@ -1,166 +1,108 @@
-
 import { Tables } from "@/integrations/supabase/types";
 
-type Player = Tables<"players">;
+const calculatePlayerNote = (player: Tables<"players">): number => {
+  let nota = 7; // Nota base
 
-// Cálculo da "Nota" do jogador baseado no blueprint
-export const calcularNotaJogador = (player: Player): number => {
-  if (player.jogos === 0) return 5.0;
-  
-  const impactoOfensivo = ((player.gols * 2.0) + (player.assistencias * 1.0)) / player.jogos;
-  const impactoDefensivo = ((player.defesas * 1.5) + (player.desarmes * 1.0)) / player.jogos;
-  const penalidade = (player.faltas * 0.25) / player.jogos;
-  
-  const pontuacaoImpactoBruta = Math.max(impactoOfensivo, impactoDefensivo) - penalidade;
-  
-  // Escalonamento para 1-10 (simplificado)
-  const nota = Math.max(1, Math.min(10, 5 + (pontuacaoImpactoBruta * 2)));
-  
-  return Math.round(nota * 10) / 10;
+  // Ajustes com base nas estatísticas
+  nota += player.gols * 0.5;
+  nota += player.assistencias * 0.3;
+  nota += player.desarmes * 0.1;
+  nota += player.defesas * 0.2;
+
+  // Penalidades (opcional)
+  nota -= player.cartoes_amarelos * 0.1;
+  nota -= player.cartoes_vermelhos * 0.3;
+
+  // Limitar a nota entre 0 e 10
+  return Math.max(0, Math.min(10, nota));
 };
 
-// Cálculo das pontuações por posição
-export const calcularPontuacoesPosicao = (player: Player) => {
-  if (player.jogos === 0) return { goleiro: 0, atacante: 0, volante: 0 };
-  
-  const goleiro = ((player.defesas * 2.0) - (player.faltas * 0.25) - (player.gols * 0.5) - (player.assistencias * 0.25)) / player.jogos;
-  const atacante = ((player.gols * 2.0) + (player.assistencias * 1.0) - (player.faltas * 0.25)) / player.jogos;
-  const volante = ((player.gols * 0.5) + (player.assistencias * 1.5) + (player.desarmes * 1.5) - (player.faltas * 0.25)) / player.jogos;
-  
-  return { goleiro, atacante, volante };
-};
+export const gerarEscalacoes = (jogadores: Tables<"players">[]) => {
+  // Filtrar jogadores ativos e calcular a nota de cada um
+  const jogadoresAtivos = jogadores
+    .filter(jogador => jogador.status === 'Ativo')
+    .map(jogador => ({ ...jogador, nota: calculatePlayerNote(jogador) }));
 
-// Algoritmo de escalação inteligente
-export const gerarEscalacoes = (jogadores: Player[]) => {
-  const disponiveis = jogadores.filter(p => p.status !== 'Lesionado');
-  const lesionados = jogadores.filter(p => p.status === 'Lesionado');
-  
-  // Calcular pontuações para cada jogador
-  const jogadoresComPontuacao = disponiveis.map(player => ({
-    ...player,
-    pontuacoes: calcularPontuacoesPosicao(player),
-    nota: calcularNotaJogador(player)
-  }));
-  
-  // Separar goleiros (especialistas) e jogadores de linha
-  const goleirosEspecialistas = jogadoresComPontuacao.filter(p => p.pontuacoes.goleiro > 0);
-  const jogadoresLinha = jogadoresComPontuacao.filter(p => p.pontuacoes.goleiro <= 0);
-  
-  const timeA: any[] = [];
-  const timeB: any[] = [];
-  
-  // 1. Seleção de goleiros
-  if (goleirosEspecialistas.length >= 2) {
-    const melhoresGoleiros = goleirosEspecialistas
-      .sort((a, b) => b.pontuacoes.goleiro - a.pontuacoes.goleiro)
-      .slice(0, 2);
-    timeA.push({ ...melhoresGoleiros[0], posicao: 'Goleiro' });
-    timeB.push({ ...melhoresGoleiros[1], posicao: 'Goleiro' });
-  } else if (goleirosEspecialistas.length === 1) {
-    timeA.push({ ...goleirosEspecialistas[0], posicao: 'Goleiro' });
-    // Time B pega o melhor "goleiro-linha"
-    const melhorGoleiroLinha = jogadoresLinha
-      .sort((a, b) => b.pontuacoes.goleiro - a.pontuacoes.goleiro)[0];
-    timeB.push({ ...melhorGoleiroLinha, posicao: 'Goleiro' });
-    jogadoresLinha.splice(jogadoresLinha.indexOf(melhorGoleiroLinha), 1);
-  } else {
-    // Ambos os times pegam goleiros-linha
-    const melhoresGoleirosLinha = jogadoresLinha
-      .sort((a, b) => b.pontuacoes.goleiro - a.pontuacoes.goleiro)
-      .slice(0, 2);
-    timeA.push({ ...melhoresGoleirosLinha[0], posicao: 'Goleiro' });
-    timeB.push({ ...melhoresGoleirosLinha[1], posicao: 'Goleiro' });
-    jogadoresLinha.splice(jogadoresLinha.indexOf(melhoresGoleirosLinha[0]), 1);
-    jogadoresLinha.splice(jogadoresLinha.indexOf(melhoresGoleirosLinha[1]), 1);
-  }
-  
-  // 2. Garantir pelo menos 1 atacante por time
-  const melhoresAtacantes = jogadoresLinha
-    .sort((a, b) => b.pontuacoes.atacante - a.pontuacoes.atacante)
-    .slice(0, 2);
-  
-  timeA.push({ ...melhoresAtacantes[0], posicao: 'Atacante' });
-  timeB.push({ ...melhoresAtacantes[1], posicao: 'Atacante' });
-  jogadoresLinha.splice(jogadoresLinha.indexOf(melhoresAtacantes[0]), 1);
-  jogadoresLinha.splice(jogadoresLinha.indexOf(melhoresAtacantes[1]), 1);
-  
-  // 3. Garantir pelo menos 1 volante por time
-  const melhoresVolantes = jogadoresLinha
-    .sort((a, b) => b.pontuacoes.volante - a.pontuacoes.volante)
-    .slice(0, 2);
-  
-  timeA.push({ ...melhoresVolantes[0], posicao: 'Volante' });
-  timeB.push({ ...melhoresVolantes[1], posicao: 'Volante' });
-  jogadoresLinha.splice(jogadoresLinha.indexOf(melhoresVolantes[0]), 1);
-  jogadoresLinha.splice(jogadoresLinha.indexOf(melhoresVolantes[1]), 1);
-  
-  // 4. Preencher vagas restantes balanceando as notas
-  while (timeA.length < 5 && timeB.length < 5 && jogadoresLinha.length > 0) {
-    const melhorJogador = jogadoresLinha
-      .sort((a, b) => Math.max(b.pontuacoes.atacante, b.pontuacoes.volante) - Math.max(a.pontuacoes.atacante, a.pontuacoes.volante))[0];
-    
-    const somaNotasA = timeA.reduce((sum, p) => sum + p.nota, 0);
-    const somaNotasB = timeB.reduce((sum, p) => sum + p.nota, 0);
-    
-    const posicao = melhorJogador.pontuacoes.atacante > melhorJogador.pontuacoes.volante ? 'Atacante' : 'Volante';
-    
-    if (somaNotasA <= somaNotasB) {
-      timeA.push({ ...melhorJogador, posicao });
-    } else {
-      timeB.push({ ...melhorJogador, posicao });
-    }
-    
-    jogadoresLinha.splice(jogadoresLinha.indexOf(melhorJogador), 1);
-  }
-  
+  // Ordenar jogadores por nota (maior para menor)
+  jogadoresAtivos.sort((a, b) => b.nota - a.nota);
+
+  // Separar por posição
+  const goleiros = jogadoresAtivos.filter(j => j.posicao === 'Goleiro');
+  const defensores = jogadoresAtivos.filter(j => j.posicao === 'Zagueiro' || j.posicao === 'Lateral');
+  const volantes = jogadoresAtivos.filter(j => j.posicao === 'Volante');
+  const atacantes = jogadoresAtivos.filter(j => j.posicao === 'Atacante');
+
+  // Escolher formação baseada na disponibilidade de jogadores
+  const formacaoA = { defensores: 4, volantes: 3, atacantes: 3 };
+  const formacaoB = { defensores: 4, volantes: 4, atacantes: 2 };
+
+  // Montar times
+  const timeA = [
+    goleiros[0],
+    ...defensores.slice(0, formacaoA.defensores),
+    ...volantes.slice(0, formacaoA.volantes),
+    ...atacantes.slice(0, formacaoA.atacantes)
+  ].filter(Boolean);
+
+  const timeB = [
+    goleiros[1],
+    ...defensores.slice(formacaoA.defensores, formacaoA.defensores + formacaoB.defensores),
+    ...volantes.slice(formacaoA.volantes, formacaoA.volantes + formacaoB.volantes),
+    ...atacantes.slice(formacaoA.atacantes, formacaoA.atacantes + formacaoB.atacantes)
+  ].filter(Boolean);
+
+  // Reservas e lesionados
+  const reservas = jogadoresAtivos.slice(timeA.length + timeB.length);
+  const lesionados = jogadores.filter(jogador => jogador.status === 'Lesionado');
+
   return {
-    timeA: timeA.slice(0, 5),
-    timeB: timeB.slice(0, 5),
-    reservas: [...jogadoresLinha, ...lesionados]
+    timeA,
+    timeB,
+    reservas: [...reservas, ...lesionados]
   };
 };
 
-// Cálculo de odds para resultado da partida
-export const calcularOddsResultado = (timeA: any[], timeB: any[]) => {
-  const notaTotalA = timeA.reduce((sum, player) => sum + player.nota, 0);
-  const notaTotalB = timeB.reduce((sum, player) => sum + player.nota, 0);
+export const calculateOdds = (timeA: Tables<"players">[], timeB: Tables<"players">[], todosJogadores: Tables<"players">[]) => {
+  const notaTimeA = timeA.reduce((sum, player) => sum + player.nota, 0) / timeA.length;
+  const notaTimeB = timeB.reduce((sum, player) => sum + player.nota, 0) / timeB.length;
   
-  const probABase = notaTotalA / (notaTotalA + notaTotalB);
-  const probBBase = notaTotalB / (notaTotalA + notaTotalB);
-  
-  const diferencaNotas = Math.abs(notaTotalA - notaTotalB);
-  const probEmpateBase = (1 - (diferencaNotas / Math.max(notaTotalA, notaTotalB))) * 0.4;
-  
-  const somaProbs = probABase + probBBase + probEmpateBase;
-  const probFinalA = probABase / somaProbs;
-  const probFinalB = probBBase / somaProbs;
-  const probFinalEmpate = probEmpateBase / somaProbs;
-  
-  return {
-    vitoria_a: +(1 / probFinalA).toFixed(2),
-    empate: +(1 / probFinalEmpate).toFixed(2),
-    vitoria_b: +(1 / probFinalB).toFixed(2)
-  };
-};
+  // Calcular probabilidades baseadas nas notas dos times
+  const forcaTotal = notaTimeA + notaTimeB;
+  const probTimeA = notaTimeA / forcaTotal;
+  const probTimeB = notaTimeB / forcaTotal;
+  const probEmpate = 0.25; // 25% de chance de empate
 
-// Cálculo de odds para mercados de jogadores
-export const calcularOddsJogador = (player: any) => {
-  const mediaGols = player.gols / (player.jogos || 1);
-  const mediaAssist = player.assistencias / (player.jogos || 1);
-  const mediaDesarmes = player.desarmes / (player.jogos || 1);
-  const mediaDefesas = player.defesas / (player.jogos || 1);
-  
-  const probGol05 = Math.min(0.9, mediaGols * 0.8);
-  const probGol15 = Math.min(0.7, Math.pow(mediaGols / 1.5, 2) * 0.7);
-  const probAssist05 = Math.min(0.8, mediaAssist * 0.7);
-  const probDesarme15 = Math.min(0.9, (mediaDesarmes / 1.5) * 0.9);
-  const probDefesa25 = Math.min(0.9, (mediaDefesas / 2.5) * 0.9);
-  
+  // Ajustar probabilidades para somar 100%
+  const fatorAjuste = 1 / (probTimeA + probTimeB + probEmpate);
+  const probAjustadaA = probTimeA * fatorAjuste;
+  const probAjustadaB = probTimeB * fatorAjuste;
+  const probAjustadaEmpate = probEmpate * fatorAjuste;
+
+  // Converter em odds decimais (com margem da casa)
+  const margem = 0.1; // 10% de margem
+  const oddTimeA = (1 / probAjustadaA) * (1 + margem);
+  const oddTimeB = (1 / probAjustadaB) * (1 + margem);
+  const oddEmpate = (1 / probAjustadaEmpate) * (1 + margem);
+
+  // Calcular odds para jogadores individuais
+  const jogadoresOdds = todosJogadores.map(jogador => {
+    const baseOdd = 2.0 + (10 - jogador.nota); // Jogadores melhores têm odds menores
+    
+    return {
+      id: jogador.id,
+      gols_0_5: Math.max(1.1, baseOdd * (1 - jogador.gols * 0.1)),
+      assistencias_0_5: Math.max(1.1, baseOdd * (1 - jogador.assistencias * 0.05)),
+      desarmes_1_5: Math.max(1.1, baseOdd * (1 - jogador.desarmes * 0.02)),
+      defesas_2_5: Math.max(1.1, baseOdd * (1 - jogador.defesas * 0.01))
+    };
+  });
+
   return {
-    gol_05: probGol05 > 0.1 ? +(1 / probGol05).toFixed(2) : 10.0,
-    gol_15: probGol15 > 0.05 ? +(1 / probGol15).toFixed(2) : 20.0,
-    assist_05: probAssist05 > 0.1 ? +(1 / probAssist05).toFixed(2) : 10.0,
-    desarme_15: probDesarme15 > 0.1 ? +(1 / probDesarme15).toFixed(2) : 10.0,
-    defesa_25: probDefesa25 > 0.1 ? +(1 / probDefesa25).toFixed(2) : 10.0
+    resultado: {
+      timeA: Number(oddTimeA.toFixed(2)),
+      timeB: Number(oddTimeB.toFixed(2)),
+      empate: Number(oddEmpate.toFixed(2))
+    },
+    jogadores: jogadoresOdds
   };
 };
