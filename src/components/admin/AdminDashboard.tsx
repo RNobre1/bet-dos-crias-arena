@@ -181,14 +181,7 @@ const AdminDashboard = () => {
               <CardTitle>Inserir Resultado da Partida</CardTitle>
             </CardHeader>
             <CardContent>
-              {partidaAtiva ? (
-                <ResultadoForm 
-                  partida={partidaAtiva} 
-                  onResultadoSubmitted={() => loadDashboardData()} 
-                />
-              ) : (
-                <p className="text-gray-500">Não há partida ativa para inserir resultado.</p>
-              )}
+              <ResultadoForm />
             </CardContent>
           </Card>
         </TabsContent>

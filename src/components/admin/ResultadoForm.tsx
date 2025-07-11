@@ -66,17 +66,32 @@ const ResultadoForm: React.FC = () => {
         
         console.log(`Atualizando estatísticas de ${jogadorId}:`, stats);
 
+        // Primeiro, buscar os valores atuais do jogador
+        const { data: jogadorAtual, error: fetchError } = await supabase
+          .from('players')
+          .select('jogos, gols, assistencias, desarmes, defesas, faltas')
+          .eq('id', jogadorId)
+          .single();
+
+        if (fetchError) {
+          console.error(`Erro ao buscar jogador ${jogadorId}:`, fetchError);
+          throw fetchError;
+        }
+
+        // Calcular novos valores
+        const novosValores = {
+          jogos: (jogadorAtual?.jogos || 0) + 1,
+          gols: (jogadorAtual?.gols || 0) + stats.gols,
+          assistencias: (jogadorAtual?.assistencias || 0) + stats.assistencias,
+          desarmes: (jogadorAtual?.desarmes || 0) + stats.desarmes,
+          defesas: (jogadorAtual?.defesas || 0) + stats.defesas,
+          faltas: (jogadorAtual?.faltas || 0) + stats.faltas,
+          updated_at: new Date().toISOString()
+        };
+
         const { error: updateError } = await supabase
           .from('players')
-          .update({
-            jogos: supabase.sql`jogos + 1`,
-            gols: supabase.sql`gols + ${stats.gols}`,
-            assistencias: supabase.sql`assistencias + ${stats.assistencias}`,
-            desarmes: supabase.sql`desarmes + ${stats.desarmes}`,
-            defesas: supabase.sql`defesas + ${stats.defesas}`,
-            faltas: supabase.sql`faltas + ${stats.faltas}`,
-            updated_at: new Date().toISOString()
-          })
+          .update(novosValores)
           .eq('id', jogadorId);
 
         if (updateError) {
@@ -124,10 +139,7 @@ const ResultadoForm: React.FC = () => {
       // Buscar seleções pendentes para esta partida
       const { data: selecoes, error: selecoesError } = await supabase
         .from('selecoes')
-        .select(`
-          *,
-          bilhetes!inner(*)
-        `)
+        .select('*')
         .eq('partida_id', partidaId)
         .eq('status_selecao', 'PENDENTE');
 
@@ -180,23 +192,23 @@ const ResultadoForm: React.FC = () => {
           if (stats) {
             const detalhe = selecao.detalhe_aposta;
             
-            if (detalhe.includes('GOLS_MAIS_')) {
-              const limite = parseFloat(detalhe.split('_')[2]);
+            if (detalhe.startsWith('GOLS_MAIS_')) {
+              const limite = parseFloat(detalhe.replace('GOLS_MAIS_', ''));
               if (stats.gols > limite) {
                 statusSelecao = 'GANHA';
               }
-            } else if (detalhe.includes('ASSIST_MAIS_')) {
-              const limite = parseFloat(detalhe.split('_')[2]);
+            } else if (detalhe.startsWith('ASSIST_MAIS_')) {
+              const limite = parseFloat(detalhe.replace('ASSIST_MAIS_', ''));
               if (stats.assistencias > limite) {
                 statusSelecao = 'GANHA';
               }
-            } else if (detalhe.includes('DESARMES_MAIS_')) {
-              const limite = parseFloat(detalhe.split('_')[2]);
+            } else if (detalhe.startsWith('DESARMES_MAIS_')) {
+              const limite = parseFloat(detalhe.replace('DESARMES_MAIS_', ''));
               if (stats.desarmes > limite) {
                 statusSelecao = 'GANHA';
               }
-            } else if (detalhe.includes('DEFESAS_MAIS_')) {
-              const limite = parseFloat(detalhe.split('_')[2]);
+            } else if (detalhe.startsWith('DEFESAS_MAIS_')) {
+              const limite = parseFloat(detalhe.replace('DEFESAS_MAIS_', ''));
               if (stats.defesas > limite) {
                 statusSelecao = 'GANHA';
               }
