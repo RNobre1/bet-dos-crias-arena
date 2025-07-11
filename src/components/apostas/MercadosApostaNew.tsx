@@ -8,10 +8,10 @@ import SelecaoPartida from './SelecaoPartida';
 import BilheteAposta from './BilheteAposta';
 import HistoricoApostas from './HistoricoApostas';
 import ConflictDialog from './ConflictDialog';
-import { calculateOdds } from "@/utils/oddsCalculator";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Lock } from "lucide-react";
 import { Selecao } from "@/types/apostas";
 import { validateBetConflicts, ConflictResult } from "@/utils/betConflictValidator";
+import { calculateAllPlayersOdds, PlayerMarketOdds } from "@/utils/poissonOddsCalculator";
 
 interface MercadosApostaNewProps {
   jogadores: Tables<"players">[];
@@ -23,6 +23,7 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
   const [partidaSelecionada, setPartidaSelecionada] = useState<Tables<"partidas"> | null>(null);
   const [selecoes, setSelecoes] = useState<Selecao[]>([]);
   const [jogadorVinculado, setJogadorVinculado] = useState<Tables<"players"> | null>(null);
+  const [playersOdds, setPlayersOdds] = useState<PlayerMarketOdds[]>([]);
   const [conflictDialog, setConflictDialog] = useState<{
     isOpen: boolean;
     conflict: ConflictResult;
@@ -39,6 +40,14 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
       loadJogadorVinculado();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Calcular odds usando Distribuição de Poisson quando jogadores mudarem
+    if (jogadores.length > 0) {
+      const odds = calculateAllPlayersOdds(jogadores);
+      setPlayersOdds(odds);
+    }
+  }, [jogadores]);
 
   const loadPartidas = async () => {
     try {
@@ -172,21 +181,6 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     );
   }
 
-  const calcularOddsJogador = (jogador: Tables<"players">) => {
-    const golsPorJogo = jogador.jogos > 0 ? jogador.gols / jogador.jogos : 0;
-    const assistPorJogo = jogador.jogos > 0 ? jogador.assistencias / jogador.jogos : 0;
-    const desarmesPorJogo = jogador.jogos > 0 ? jogador.desarmes / jogador.jogos : 0;
-    const defesasPorJogo = jogador.jogos > 0 ? jogador.defesas / jogador.jogos : 0;
-
-    return {
-      golsMais05: Math.max(1.5, 1 / Math.max(0.1, golsPorJogo * 0.8)),
-      golsMais15: Math.max(2.0, 1 / Math.max(0.05, golsPorJogo * 0.4)),
-      assistMais05: Math.max(1.8, 1 / Math.max(0.1, assistPorJogo * 0.7)),
-      desarmesMais15: Math.max(1.6, 1 / Math.max(0.1, desarmesPorJogo * 0.6)),
-      defesasMais25: Math.max(1.4, 1 / Math.max(0.1, defesasPorJogo * 0.5))
-    };
-  };
-
   const renderMercadosResultado = () => {
     if (!partidaSelecionada) return null;
 
@@ -232,6 +226,35 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     );
   };
 
+  const renderMarketButton = (
+    label: string,
+    odd: number | null,
+    onClick: () => void,
+    isBlocked: boolean = false
+  ) => {
+    if (odd === null || isBlocked) {
+      return (
+        <div className="p-2 border rounded bg-gray-100 text-center text-sm opacity-50 cursor-not-allowed">
+          <div className="flex items-center justify-center gap-1">
+            <Lock className="w-3 h-3" />
+            <span>{label}</span>
+          </div>
+          <div className="text-gray-500">∞</div>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        onClick={onClick}
+        className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
+      >
+        <div>{label}</div>
+        <div className="text-green-600 font-bold">{odd.toFixed(2)}</div>
+      </button>
+    );
+  };
+
   const renderMercadosJogador = () => {
     if (!partidaSelecionada) return null;
 
@@ -260,57 +283,79 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Mercados de Jogadores</CardTitle>
+          <CardTitle>Mercados de Jogadores (Distribuição de Poisson)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {jogadoresDisponiveis.map((jogador) => {
-              const odds = calcularOddsJogador(jogador);
+              const playerOdds = playersOdds.find(p => p.id === jogador.id);
+              
+              if (!playerOdds) return null;
               
               return (
                 <div key={jogador.id} className="border rounded-lg p-4">
                   <h4 className="font-semibold text-lg mb-3">{jogador.jogador}</h4>
                   
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                    <button
-                      onClick={() => adicionarSelecao('MERCADO_JOGADOR', `GOLS_MAIS_0.5_${jogador.id}`, odds.golsMais05, jogador.id, jogador.jogador)}
-                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
-                    >
-                      <div>Gols +0.5</div>
-                      <div className="text-green-600 font-bold">{odds.golsMais05.toFixed(2)}</div>
-                    </button>
+                    {renderMarketButton(
+                      'Gols +0.5',
+                      playerOdds.gols.over_0_5,
+                      () => adicionarSelecao(
+                        'MERCADO_JOGADOR', 
+                        `GOLS_MAIS_0.5_${jogador.id}`, 
+                        playerOdds.gols.over_0_5!, 
+                        jogador.id, 
+                        jogador.jogador
+                      )
+                    )}
 
-                    <button
-                      onClick={() => adicionarSelecao('MERCADO_JOGADOR', `GOLS_MAIS_1.5_${jogador.id}`, odds.golsMais15, jogador.id, jogador.jogador)}
-                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
-                    >
-                      <div>Gols +1.5</div>
-                      <div className="text-green-600 font-bold">{odds.golsMais15.toFixed(2)}</div>
-                    </button>
+                    {renderMarketButton(
+                      'Gols +1.5',
+                      playerOdds.gols.over_1_5,
+                      () => adicionarSelecao(
+                        'MERCADO_JOGADOR', 
+                        `GOLS_MAIS_1.5_${jogador.id}`, 
+                        playerOdds.gols.over_1_5!, 
+                        jogador.id, 
+                        jogador.jogador
+                      )
+                    )}
 
-                    <button
-                      onClick={() => adicionarSelecao('MERCADO_JOGADOR', `ASSIST_MAIS_0.5_${jogador.id}`, odds.assistMais05, jogador.id, jogador.jogador)}
-                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
-                    >
-                      <div>Assist +0.5</div>
-                      <div className="text-green-600 font-bold">{odds.assistMais05.toFixed(2)}</div>
-                    </button>
+                    {renderMarketButton(
+                      'Assist +0.5',
+                      playerOdds.assistencias.over_0_5,
+                      () => adicionarSelecao(
+                        'MERCADO_JOGADOR', 
+                        `ASSIST_MAIS_0.5_${jogador.id}`, 
+                        playerOdds.assistencias.over_0_5!, 
+                        jogador.id, 
+                        jogador.jogador
+                      )
+                    )}
 
-                    <button
-                      onClick={() => adicionarSelecao('MERCADO_JOGADOR', `DESARMES_MAIS_1.5_${jogador.id}`, odds.desarmesMais15, jogador.id, jogador.jogador)}
-                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
-                    >
-                      <div>Desarmes +1.5</div>
-                      <div className="text-green-600 font-bold">{odds.desarmesMais15.toFixed(2)}</div>
-                    </button>
+                    {renderMarketButton(
+                      'Desarmes +1.5',
+                      playerOdds.desarmes.over_1_5,
+                      () => adicionarSelecao(
+                        'MERCADO_JOGADOR', 
+                        `DESARMES_MAIS_1.5_${jogador.id}`, 
+                        playerOdds.desarmes.over_1_5!, 
+                        jogador.id, 
+                        jogador.jogador
+                      )
+                    )}
 
-                    <button
-                      onClick={() => adicionarSelecao('MERCADO_JOGADOR', `DEFESAS_MAIS_2.5_${jogador.id}`, odds.defesasMais25, jogador.id, jogador.jogador)}
-                      className="p-2 border rounded hover:bg-gray-50 text-center text-sm"
-                    >
-                      <div>Defesas +2.5</div>
-                      <div className="text-green-600 font-bold">{odds.defesasMais25.toFixed(2)}</div>
-                    </button>
+                    {renderMarketButton(
+                      'Defesas +2.5',
+                      playerOdds.defesas.over_2_5,
+                      () => adicionarSelecao(
+                        'MERCADO_JOGADOR', 
+                        `DEFESAS_MAIS_2.5_${jogador.id}`, 
+                        playerOdds.defesas.over_2_5!, 
+                        jogador.id, 
+                        jogador.jogador
+                      )
+                    )}
                   </div>
                 </div>
               );
