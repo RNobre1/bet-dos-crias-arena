@@ -349,6 +349,79 @@ const ResultadoForm: React.FC = () => {
         }
       }
 
+      // === NOVA FUNCIONALIDADE: ATUALIZAR SALDO DOS USUÁRIOS VENCEDORES ===
+      console.log('=== INICIANDO ATUALIZAÇÃO DE SALDOS DOS VENCEDORES ===');
+      
+      // Buscar todos os bilhetes ganhos
+      const bilhetesGanhos = Array.from(bilhetesParaAtualizar.entries())
+        .filter(([_, info]) => info.todas_ganhas)
+        .map(([bilheteId, _]) => bilheteId);
+
+      console.log('Bilhetes ganhos encontrados:', bilhetesGanhos);
+
+      if (bilhetesGanhos.length > 0) {
+        // Buscar informações dos bilhetes ganhos (user_id, valor_apostado, odd_total)
+        const { data: bilhetesGanhosData, error: bilhetesError } = await supabase
+          .from('bilhetes')
+          .select('bilhete_id, user_id, valor_apostado, odd_total')
+          .in('bilhete_id', bilhetesGanhos);
+
+        if (bilhetesError) {
+          console.error('Erro ao buscar dados dos bilhetes ganhos:', bilhetesError);
+          throw bilhetesError;
+        }
+
+        console.log('Dados dos bilhetes ganhos:', bilhetesGanhosData);
+
+        // Atualizar saldo de cada usuário vencedor
+        for (const bilhete of bilhetesGanhosData || []) {
+          const premioValue = Number(bilhete.valor_apostado) * Number(bilhete.odd_total);
+          
+          console.log(`Processando prêmio para usuário ${bilhete.user_id}:`);
+          console.log(`- Bilhete: ${bilhete.bilhete_id}`);
+          console.log(`- Valor apostado: R$ ${bilhete.valor_apostado}`);
+          console.log(`- Odd total: ${bilhete.odd_total}`);
+          console.log(`- Prêmio calculado: R$ ${premioValue.toFixed(2)}`);
+
+          // Buscar saldo atual do usuário
+          const { data: usuarioAtual, error: fetchUsuarioError } = await supabase
+            .from('usuarios')
+            .select('saldo_ficticio')
+            .eq('user_id', bilhete.user_id)
+            .single();
+
+          if (fetchUsuarioError) {
+            console.error(`Erro ao buscar usuário ${bilhete.user_id}:`, fetchUsuarioError);
+            continue;
+          }
+
+          const saldoAtual = Number(usuarioAtual?.saldo_ficticio || 0);
+          const novoSaldo = saldoAtual + premioValue;
+
+          console.log(`- Saldo atual: R$ ${saldoAtual.toFixed(2)}`);
+          console.log(`- Novo saldo: R$ ${novoSaldo.toFixed(2)}`);
+
+          // Atualizar saldo do usuário
+          const { error: updateSaldoError } = await supabase
+            .from('usuarios')
+            .update({ 
+              saldo_ficticio: novoSaldo,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', bilhete.user_id);
+
+          if (updateSaldoError) {
+            console.error(`Erro ao atualizar saldo do usuário ${bilhete.user_id}:`, updateSaldoError);
+          } else {
+            console.log(`✅ Saldo do usuário ${bilhete.user_id} atualizado com sucesso! Novo saldo: R$ ${novoSaldo.toFixed(2)}`);
+          }
+        }
+        
+        console.log(`=== SALDOS ATUALIZADOS: ${bilhetesGanhosData?.length || 0} usuários vencedores ===`);
+      } else {
+        console.log('Nenhum bilhete ganho encontrado para atualização de saldo');
+      }
+
       console.log('=== PROCESSAMENTO DE APOSTAS CONCLUÍDO ===');
 
     } catch (error) {
