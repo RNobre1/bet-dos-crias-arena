@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,6 +8,7 @@ import { Info } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { generateTeams } from "@/utils/teamFormation";
 import CampoFutebol from "./CampoFutebol";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface EscalacoesViewNewProps {
   jogadores: Tables<"players">[];
@@ -14,6 +16,7 @@ interface EscalacoesViewNewProps {
 
 const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
   const [showTeam, setShowTeam] = useState<'A' | 'B' | 'AMBOS'>('AMBOS');
+  const isMobile = useIsMobile();
   
   const { timeA, timeB, reservas } = generateTeams(jogadores);
 
@@ -27,9 +30,9 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
 
   return (
     <TooltipProvider>
-      <div className="space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
+      <div className={`space-y-6 ${isMobile ? 'pb-20' : ''}`}>
+        <div className="text-center px-4">
+          <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2 flex items-center justify-center gap-2`}>
             Escalações da Próxima Partida
             <Tooltip>
               <TooltipTrigger>
@@ -47,19 +50,21 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
               </TooltipContent>
             </Tooltip>
           </h2>
-          <p className="text-gray-600">Geradas automaticamente com base no desempenho dos jogadores</p>
+          <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
+            Geradas automaticamente com base no desempenho dos jogadores
+          </p>
         </div>
 
         {/* Controle de visualização */}
-        <Card>
+        <Card className="mx-4">
           <CardHeader>
-            <CardTitle>Visualização das Escalações</CardTitle>
+            <CardTitle className={isMobile ? 'text-lg' : 'text-xl'}>Visualização das Escalações</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4 mb-4">
               <label className="font-medium">Mostrar:</label>
               <Select value={showTeam} onValueChange={(value: 'A' | 'B' | 'AMBOS') => setShowTeam(value)}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className={isMobile ? 'w-40' : 'w-48'}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -70,7 +75,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
               </Select>
             </div>
 
-            <div className="flex gap-6">
+            <div className={`${isMobile ? 'space-y-4' : 'flex gap-6'}`}>
               {/* Campo de futebol */}
               <div className="flex-1">
                 <CampoFutebol 
@@ -80,22 +85,22 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
                 />
               </div>
 
-              {/* Reservas na lateral */}
+              {/* Reservas */}
               {reservas.length > 0 && (
-                <div className="w-64">
+                <div className={isMobile ? 'w-full' : 'w-64'}>
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Reservas</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
+                      <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'space-y-3'}`}>
                         {reservas.map((player) => (
-                          <div key={player.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div>
-                              <p className="text-sm font-medium">{player.jogador}</p>
-                              <p className="text-xs text-gray-500">Nota: {player.nota.toFixed(1)}</p>
+                          <div key={player.id} className={`flex ${isMobile ? 'flex-col' : 'items-center justify-between'} p-2 bg-gray-50 rounded`}>
+                            <div className={isMobile ? 'text-center' : ''}>
+                              <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>{player.jogador}</p>
+                              <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-gray-500`}>Nota: {player.nota.toFixed(1)}</p>
                             </div>
-                            <Badge variant={getStatusColor(player.status)}>
+                            <Badge variant={getStatusColor(player.status)} className={`${isMobile ? 'text-xs mt-1 self-center' : ''}`}>
                               {player.status === 'Lesionado' ? 'Lesionado' : 'Reserva'}
                             </Badge>
                           </div>
@@ -110,7 +115,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
         </Card>
 
         {/* Estatísticas dos times */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`${isMobile ? 'space-y-4 mx-4' : 'grid grid-cols-1 md:grid-cols-2 gap-6'}`}>
           <Card>
             <CardHeader>
               <CardTitle className="text-green-600">Time A</CardTitle>

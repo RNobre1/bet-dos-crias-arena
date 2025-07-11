@@ -12,12 +12,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Loader2 } from 'lucide-react';
 import { recalcularTodasAsNotas } from '@/utils/playerNotesCalculator';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const AppContent = () => {
   const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('classificacao');
   const [jogadores, setJogadores] = useState<Tables<"players">[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user) {
@@ -103,7 +105,7 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
-      <main className="container mx-auto p-6">
+      <main className={`${isMobile ? 'pb-20 px-0' : 'container mx-auto p-6'}`}>
         {renderPage()}
       </main>
     </div>
