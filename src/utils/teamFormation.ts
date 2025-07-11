@@ -19,9 +19,9 @@ export interface Team {
 }
 
 export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; timeB: Team; reservas: Tables<"players">[] } => {
-  // Filtro 1: Separar lesionados para reservas
+  // Filtro 1: Separar disponíveis e lesionados
   const jogadoresDisponiveis = jogadores.filter(j => j.status !== 'Lesionado');
-  const reservas = jogadores.filter(j => j.status === 'Lesionado');
+  const lesionados = jogadores.filter(j => j.status === 'Lesionado');
   
   // Calcular pontuações de posição para cada jogador
   const jogadoresComPontuacao: TeamPlayer[] = jogadoresDisponiveis.map(jogador => ({
@@ -59,18 +59,20 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     timeA.push(goleiroA);
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === goleiroA.id), 1);
     
-    // Time B recebe um "Goleiro-Linha" (jogador mais defensivo)
+    // Time B recebe um "Goleiro-Linha"
     const maisDefensivo = jogadoresRestantes
       .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro)[0];
-    maisDefensivo.assignedPosition = 'goleiro';
-    timeB.push(maisDefensivo);
-    jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === maisDefensivo.id), 1);
+    if (maisDefensivo) {
+      maisDefensivo.assignedPosition = 'goleiro';
+      timeB.push(maisDefensivo);
+      jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === maisDefensivo.id), 1);
+    }
   } else {
     // Nenhum goleiro especialista - improvisar dois goleiros-linha
-    const melhoresDefensivos = jogadoresRestantes
-      .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro);
-    
-    if (melhoresDefensivos.length >= 2) {
+    if (jogadoresRestantes.length >= 2) {
+      const melhoresDefensivos = jogadoresRestantes
+        .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro);
+      
       const goleiroA = melhoresDefensivos[0];
       const goleiroB = melhoresDefensivos[1];
       goleiroA.assignedPosition = 'goleiro';
@@ -83,8 +85,7 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     }
   }
 
-  // Filtro 3: Preenchimento Obrigatório (Garantia Tática)
-  // Dividir jogadores em especialistas
+  // Filtro 3: Preenchimento Obrigatório
   const especialistasAtaque = jogadoresRestantes
     .filter(j => j.positionScores.atacante > j.positionScores.volante)
     .sort((a, b) => b.positionScores.atacante - a.positionScores.atacante);
@@ -104,9 +105,14 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === atacanteA.id), 1);
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === atacanteB.id), 1);
+  } else if (especialistasAtaque.length === 1) {
+    const atacanteA = especialistasAtaque[0];
+    atacanteA.assignedPosition = 'atacante';
+    timeA.push(atacanteA);
+    jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === atacanteA.id), 1);
   }
 
-  // Garantir pelo menos 1 volante por time (que não sejam os atacantes já selecionados)
+  // Garantir pelo menos 1 volante por time
   const volantesDisponiveis = especialistasMeioCampo.filter(v => 
     !timeA.some(t => t.id === v.id) && !timeB.some(t => t.id === v.id)
   );
@@ -121,15 +127,20 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === volanteA.id), 1);
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === volanteB.id), 1);
+  } else if (volantesDisponiveis.length === 1) {
+    const volanteA = volantesDisponiveis[0];
+    volanteA.assignedPosition = 'volante';
+    timeA.push(volanteA);
+    jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === volanteA.id), 1);
   }
 
-  // Filtro 4: Balanceamento Final das Vagas Restantes
-  while (timeA.length < 5 && timeB.length < 5 && jogadoresRestantes.length > 0) {
+  // Filtro 4: Balanceamento Final - Garantir exatamente 5 jogadores por time
+  while ((timeA.length < 5 || timeB.length < 5) && jogadoresRestantes.length > 0) {
     // Calcular nota total atual de cada time
     const notaTimeA = timeA.reduce((sum, j) => sum + j.nota, 0);
     const notaTimeB = timeB.reduce((sum, j) => sum + j.nota, 0);
 
-    // Selecionar melhor jogador disponível por aptidão de linha
+    // Selecionar melhor jogador disponível
     const melhorJogador = jogadoresRestantes.reduce((melhor, atual) => {
       const pontuacaoAtual = Math.max(atual.positionScores.atacante, atual.positionScores.volante);
       const pontuacaoMelhor = Math.max(melhor.positionScores.atacante, melhor.positionScores.volante);
@@ -140,8 +151,12 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     melhorJogador.assignedPosition = melhorJogador.positionScores.atacante > melhorJogador.positionScores.volante 
       ? 'atacante' : 'volante';
 
-    // Adicionar ao time com menor nota total
-    if (notaTimeA <= notaTimeB && timeA.length < 5) {
+    // Priorizar completar o time que tem menos jogadores
+    if (timeA.length < timeB.length && timeA.length < 5) {
+      timeA.push(melhorJogador);
+    } else if (timeB.length < timeA.length && timeB.length < 5) {
+      timeB.push(melhorJogador);
+    } else if (timeA.length < 5 && (notaTimeA <= notaTimeB)) {
       timeA.push(melhorJogador);
     } else if (timeB.length < 5) {
       timeB.push(melhorJogador);
@@ -151,8 +166,23 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === melhorJogador.id), 1);
   }
 
+  // Se ainda faltam jogadores, completar com os restantes
+  while (timeA.length < 5 && jogadoresRestantes.length > 0) {
+    const jogador = jogadoresRestantes.shift()!;
+    jogador.assignedPosition = jogador.positionScores.atacante > jogador.positionScores.volante 
+      ? 'atacante' : 'volante';
+    timeA.push(jogador);
+  }
+
+  while (timeB.length < 5 && jogadoresRestantes.length > 0) {
+    const jogador = jogadoresRestantes.shift()!;
+    jogador.assignedPosition = jogador.positionScores.atacante > jogador.positionScores.volante 
+      ? 'atacante' : 'volante';
+    timeB.push(jogador);
+  }
+
   // Adicionar jogadores restantes aos reservas
-  reservas.push(...jogadoresRestantes);
+  const reservas = [...jogadoresRestantes, ...lesionados];
 
   // Calcular formações
   const getFormacao = (time: TeamPlayer[]): string => {
