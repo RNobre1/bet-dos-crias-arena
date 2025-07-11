@@ -2,16 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, AuthProvider } from '@/hooks/useAuth';
 import AuthForm from '@/components/auth/AuthForm';
+import PlayerSelection from '@/components/auth/PlayerSelection';
 import Navigation from '@/components/layout/Navigation';
 import TabelaClassificacao from '@/components/classificacao/TabelaClassificacao';
 import EscalacoesView from '@/components/escalacoes/EscalacoesView';
 import MercadosAposta from '@/components/apostas/MercadosAposta';
+import AdminDashboard from '@/components/admin/AdminDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Loader2 } from 'lucide-react';
 
 const AppContent = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('classificacao');
   const [jogadores, setJogadores] = useState<Tables<"players">[]>([]);
   const [partida, setPartida] = useState<Tables<"partidas"> | null>(null);
@@ -65,6 +67,11 @@ const AppContent = () => {
     return <AuthForm />;
   }
 
+  // Se é o primeiro login, mostrar seleção de jogador
+  if (profile?.primeiro_login) {
+    return <PlayerSelection />;
+  }
+
   if (loadingData) {
     return (
       <div className="min-h-screen">
@@ -87,7 +94,7 @@ const AppContent = () => {
       case 'historico':
         return <div className="text-center p-8">Histórico em desenvolvimento...</div>;
       case 'admin':
-        return <div className="text-center p-8">Painel Admin em desenvolvimento...</div>;
+        return <AdminDashboard />;
       default:
         return <TabelaClassificacao jogadores={jogadores} />;
     }

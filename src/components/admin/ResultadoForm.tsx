@@ -1,0 +1,347 @@
+
+import React, { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
+import { toast } from "sonner";
+
+interface ResultadoFormProps {
+  partida: Tables<"partidas">;
+  onResultadoSubmitted: () => void;
+}
+
+interface PlayerStats {
+  id: string;
+  jogador: string;
+  gols: number;
+  assistencias: number;
+  defesas: number;
+  desarmes: number;
+  faltas: number;
+}
+
+const ResultadoForm: React.FC<ResultadoFormProps> = ({ partida, onResultadoSubmitted }) => {
+  const [jogadores, setJogadores] = useState<PlayerStats[]>([]);
+  const [placarA, setPlacarA] = useState(0);
+  const [placarB, setPlacarB] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadJogadores();
+  }, []);
+
+  const loadJogadores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .neq('status', 'Lesionado')
+        .order('jogador');
+
+      if (error) throw error;
+
+      setJogadores(data?.map(player => ({
+        id: player.id,
+        jogador: player.jogador,
+        gols: 0,
+        assistencias: 0,
+        defesas: 0,
+        desarmes: 0,
+        faltas: 0
+      })) || []);
+    } catch (error) {
+      console.error('Erro ao carregar jogadores:', error);
+      toast.error('Erro ao carregar jogadores');
+    }
+  };
+
+  const updatePlayerStat = (playerId: string, stat: keyof PlayerStats, value: number) => {
+    if (stat === 'id' || stat === 'jogador') return;
+    
+    setJogadores(prev => prev.map(player => 
+      player.id === playerId 
+        ? { ...player, [stat]: Math.max(0, value) }
+        : player
+    ));
+  };
+
+  const processarResultado = async () => {
+    setLoading(true);
+    try {
+      // Atualizar estatísticas dos jogadores
+      for (const playerStats of jogadores) {
+        const hasStats = playerStats.gols > 0 || playerStats.assistencias > 0 || 
+                        playerStats.defesas > 0 || playerStats.desarmes > 0 || playerStats.faltas > 0;
+        
+        if (hasStats) {
+          // Buscar estatísticas atuais do jogador
+          const { data: currentPlayer } = await supabase
+            .from('players')
+            .select('*')
+            .eq('id', playerStats.id)
+            .single();
+
+          if (currentPlayer) {
+            const { error } = await supabase
+              .from('players')
+              .update({
+                gols: currentPlayer.gols + playerStats.gols,
+                assistencias: currentPlayer.assistencias + playerStats.assistencias,
+                defesas: currentPlayer.defesas + playerStats.defesas,
+                desarmes: currentPlayer.desarmes + playerStats.desarmes,
+                faltas: currentPlayer.faltas + playerStats.faltas,
+                jogos: currentPlayer.jogos + 1,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', playerStats.id);
+
+            if (error) throw error;
+          }
+        }
+      }
+
+      // Atualizar resultado da partida
+      const { error: partidaError } = await supabase
+        .from('partidas')
+        .update({
+          resultado_final: `${placarA}-${placarB}`,
+          status: 'FINALIZADA'
+        })
+        .eq('partida_id', partida.partida_id);
+
+      if (partidaError) throw partidaError;
+
+      // Processar apostas
+      await processarApostas();
+
+      toast.success('Resultado processado com sucesso!');
+      onResultadoSubmitted();
+    } catch (error) {
+      console.error('Erro ao processar resultado:', error);
+      toast.error('Erro ao processar resultado');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processarApostas = async () => {
+    try {
+      // Buscar todas as seleções pendentes para esta partida
+      const { data: selecoes, error: selecoesError } = await supabase
+        .from('selecoes')
+        .select(`
+          *,
+          bilhetes (*)
+        `)
+        .eq('partida_id', partida.partida_id)
+        .eq('status_selecao', 'PENDENTE');
+
+      if (selecoesError) throw selecoesError;
+
+      // Processar cada seleção
+      for (const selecao of selecoes || []) {
+        let isGanha = false;
+
+        // Verificar resultado baseado no tipo de aposta
+        switch (selecao.categoria_aposta) {
+          case 'RESULTADO_PARTIDA':
+            if (selecao.detalhe_aposta === 'VITORIA_A' && placarA > placarB) isGanha = true;
+            if (selecao.detalhe_aposta === 'VITORIA_B' && placarB > placarA) isGanha = true;
+            if (selecao.detalhe_aposta === 'EMPATE' && placarA === placarB) isGanha = true;
+            break;
+          
+          case 'MERCADO_JOGADOR':
+            if (selecao.jogador_alvo_id) {
+              const playerStats = jogadores.find(p => p.id === selecao.jogador_alvo_id);
+              if (playerStats) {
+                if (selecao.detalhe_aposta.includes('GOLS_MAIS_0.5') && playerStats.gols >= 1) isGanha = true;
+                if (selecao.detalhe_aposta.includes('GOLS_MAIS_1.5') && playerStats.gols >= 2) isGanha = true;
+                if (selecao.detalhe_aposta.includes('ASSIST_MAIS_0.5') && playerStats.assistencias >= 1) isGanha = true;
+                if (selecao.detalhe_aposta.includes('DESARMES_MAIS_1.5') && playerStats.desarmes >= 2) isGanha = true;
+                if (selecao.detalhe_aposta.includes('DEFESAS_MAIS_2.5') && playerStats.defesas >= 3) isGanha = true;
+              }
+            }
+            break;
+        }
+
+        // Atualizar status da seleção
+        await supabase
+          .from('selecoes')
+          .update({ status_selecao: isGanha ? 'GANHA' : 'PERDIDA' })
+          .eq('selecao_id', selecao.selecao_id);
+      }
+
+      // Processar bilhetes
+      const bilhetesUnicos = [...new Set(selecoes?.map(s => s.bilhete_id))];
+      
+      for (const bilheteId of bilhetesUnicos) {
+        const { data: selecoesDoBlhete } = await supabase
+          .from('selecoes')
+          .select('status_selecao')
+          .eq('bilhete_id', bilheteId);
+
+        const todasGanhas = selecoesDoBlhete?.every(s => s.status_selecao === 'GANHA');
+        const algumaPerdida = selecoesDoBlhete?.some(s => s.status_selecao === 'PERDIDA');
+
+        let statusBilhete: 'GANHO' | 'PERDIDO' = 'PERDIDO';
+        if (todasGanhas) statusBilhete = 'GANHO';
+
+        // Atualizar status do bilhete
+        await supabase
+          .from('bilhetes')
+          .update({ status_bilhete: statusBilhete })
+          .eq('bilhete_id', bilheteId);
+
+        // Se ganhou, pagar o prêmio
+        if (statusBilhete === 'GANHO') {
+          const { data: bilhete } = await supabase
+            .from('bilhetes')
+            .select('user_id, valor_apostado, odd_total')
+            .eq('bilhete_id', bilheteId)
+            .single();
+
+          if (bilhete) {
+            const premio = bilhete.valor_apostado * bilhete.odd_total;
+            
+            const { data: usuario } = await supabase
+              .from('usuarios')
+              .select('saldo_ficticio')
+              .eq('user_id', bilhete.user_id)
+              .single();
+
+            if (usuario) {
+              await supabase
+                .from('usuarios')
+                .update({ saldo_ficticio: usuario.saldo_ficticio + premio })
+                .eq('user_id', bilhete.user_id);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao processar apostas:', error);
+      throw error;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Placar */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Placar Final</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 items-center">
+            <div className="text-center">
+              <Label>{partida.time_a_nome}</Label>
+              <Input
+                type="number"
+                value={placarA}
+                onChange={(e) => setPlacarA(parseInt(e.target.value) || 0)}
+                min="0"
+                className="text-center text-2xl font-bold mt-2"
+              />
+            </div>
+            <div className="text-center text-2xl font-bold">X</div>
+            <div className="text-center">
+              <Label>{partida.time_b_nome}</Label>
+              <Input
+                type="number"
+                value={placarB}
+                onChange={(e) => setPlacarB(parseInt(e.target.value) || 0)}
+                min="0"
+                className="text-center text-2xl font-bold mt-2"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Estatísticas dos Jogadores */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Estatísticas dos Jogadores</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {jogadores.map((player) => (
+              <div key={player.id} className="grid grid-cols-1 md:grid-cols-7 gap-2 items-center p-4 border rounded-lg">
+                <div className="font-medium">{player.jogador}</div>
+                
+                <div>
+                  <Label className="text-xs">Gols</Label>
+                  <Input
+                    type="number"
+                    value={player.gols}
+                    onChange={(e) => updatePlayerStat(player.id, 'gols', parseInt(e.target.value) || 0)}
+                    min="0"
+                    className="text-center"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Assist.</Label>
+                  <Input
+                    type="number"
+                    value={player.assistencias}
+                    onChange={(e) => updatePlayerStat(player.id, 'assistencias', parseInt(e.target.value) || 0)}
+                    min="0"
+                    className="text-center"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Defesas</Label>
+                  <Input
+                    type="number"
+                    value={player.defesas}
+                    onChange={(e) => updatePlayerStat(player.id, 'defesas', parseInt(e.target.value) || 0)}
+                    min="0"
+                    className="text-center"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Desarmes</Label>
+                  <Input
+                    type="number"
+                    value={player.desarmes}
+                    onChange={(e) => updatePlayerStat(player.id, 'desarmes', parseInt(e.target.value) || 0)}
+                    min="0"
+                    className="text-center"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Faltas</Label>
+                  <Input
+                    type="number"
+                    value={player.faltas}
+                    onChange={(e) => updatePlayerStat(player.id, 'faltas', parseInt(e.target.value) || 0)}
+                    min="0"
+                    className="text-center"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button 
+        onClick={processarResultado} 
+        disabled={loading}
+        className="w-full bg-green-600 hover:bg-green-700"
+        size="lg"
+      >
+        {loading ? 'Processando...' : 'Processar Resultado e Finalizar Partida'}
+      </Button>
+    </div>
+  );
+};
+
+export default ResultadoForm;

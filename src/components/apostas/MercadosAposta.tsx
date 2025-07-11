@@ -1,118 +1,175 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tables } from "@/integrations/supabase/types";
-import { gerarEscalacoes, calcularOddsResultado, calcularOddsJogador } from "@/utils/oddsCalculator";
-import BilheteAposta from './BilheteAposta';
+import { calculateOdds } from "@/utils/oddsCalculator";
+import { generateTeams } from "@/utils/teamFormation";
+import { useAuth } from "@/hooks/useAuth";
+import BilheteAposta from "./BilheteAposta";
+import { Trophy, Calendar, Users } from "lucide-react";
 
 interface MercadosApostaProps {
   jogadores: Tables<"players">[];
   partida: Tables<"partidas"> | null;
 }
 
-export interface Selecao {
-  id: string;
-  descricao: string;
-  odd: number;
+interface Selecao {
   categoria: string;
   detalhe: string;
-  jogador_id?: string;
-  partida_id: number;
+  odd: number;
+  jogadorAlvo?: Tables<"players">;
 }
 
 const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) => {
+  const { profile } = useAuth();
   const [selecoes, setSelecoes] = useState<Selecao[]>([]);
+  const [odds, setOdds] = useState<any>(null);
+  const [escalacoes, setEscalacoes] = useState<any>(null);
 
-  if (!partida) {
-    return (
-      <Card>
-        <CardContent className="text-center p-8">
-          <p>Nenhuma partida agendada no momento.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  useEffect(() => {
+    if (jogadores.length > 0 && partida) {
+      // Gerar escalações
+      const teams = generateTeams(jogadores);
+      setEscalacoes(teams);
 
-  const escalacoes = gerarEscalacoes(jogadores);
-  const oddsResultado = calcularOddsResultado(escalacoes.timeA, escalacoes.timeB);
+      // Calcular odds baseadas nas escalações
+      const calculatedOdds = calculateOdds(teams.timeA.jogadores, teams.timeB.jogadores, jogadores);
+      setOdds(calculatedOdds);
+    }
+  }, [jogadores, partida]);
 
   const adicionarSelecao = (selecao: Selecao) => {
-    // Verificar se já existe uma seleção conflitante
+    // Verificar se usuário não está apostando em si mesmo
+    if (selecao.jogadorAlvo && profile?.user_id) {
+      const jogadorDoUsuario = jogadores.find(j => j.user_id === profile.user_id);
+      if (jogadorDoUsuario && selecao.jogadorAlvo.id === jogadorDoUsuario.id) {
+        alert('Você não pode apostar em si mesmo!');
+        return;
+      }
+    }
+
+    // Verificar conflitos (mesma categoria + detalhe)
     const conflito = selecoes.find(s => 
       s.categoria === selecao.categoria && 
-      s.jogador_id === selecao.jogador_id
+      s.detalhe.split('_')[0] === selecao.detalhe.split('_')[0]
     );
 
     if (conflito) {
-      // Substituir a seleção conflitante
-      setSelecoes(prev => prev.map(s => s.id === conflito.id ? selecao : s));
+      // Substituir seleção conflitante
+      setSelecoes(prev => prev.map(s => 
+        s.categoria === selecao.categoria && s.detalhe.split('_')[0] === selecao.detalhe.split('_')[0]
+          ? selecao 
+          : s
+      ));
     } else {
       setSelecoes(prev => [...prev, selecao]);
     }
   };
 
-  const removerSelecao = (id: string) => {
-    setSelecoes(prev => prev.filter(s => s.id !== id));
+  const removerSelecao = (index: number) => {
+    setSelecoes(prev => prev.filter((_, i) => i !== index));
   };
+
+  if (!partida) {
+    return (
+      <div className="text-center p-8">
+        <Calendar className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+        <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhuma partida agendada</h3>
+        <p className="text-gray-500">Aguarde o administrador agendar a próxima partida.</p>
+      </div>
+    );
+  }
+
+  if (!odds || !escalacoes) {
+    return (
+      <div className="text-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Calculando odds...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Mercados de Apostas */}
       <div className="lg:col-span-2 space-y-6">
-        {/* Mercado de Resultado */}
+        {/* Info da Partida */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5" />
+              {partida.time_a_nome} vs {partida.time_b_nome}
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              {new Date(partida.data_partida).toLocaleString('pt-BR')}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <h4 className="font-semibold">{escalacoes.timeA.nome}</h4>
+                <p className="text-sm text-gray-600">Formação: {escalacoes.timeA.formacao}</p>
+                <p className="text-lg font-bold text-green-600">
+                  Nota: {escalacoes.timeA.notaTotal.toFixed(1)}
+                </p>
+              </div>
+              <div className="text-center">
+                <h4 className="font-semibold">{escalacoes.timeB.nome}</h4>
+                <p className="text-sm text-gray-600">Formação: {escalacoes.timeB.formacao}</p>
+                <p className="text-lg font-bold text-blue-600">
+                  Nota: {escalacoes.timeB.notaTotal.toFixed(1)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Resultado da Partida */}
         <Card>
           <CardHeader>
             <CardTitle>Resultado da Partida</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 variant="outline"
-                className="h-auto p-4 flex flex-col items-center space-y-2"
+                className="flex flex-col p-4 h-auto"
                 onClick={() => adicionarSelecao({
-                  id: `resultado_vitoria_a_${Date.now()}`,
-                  descricao: `Vitória ${partida.time_a_nome}`,
-                  odd: oddsResultado.vitoria_a,
                   categoria: 'RESULTADO_PARTIDA',
                   detalhe: 'VITORIA_A',
-                  partida_id: partida.partida_id
+                  odd: odds.resultado.timeA
                 })}
               >
-                <span className="font-semibold">{partida.time_a_nome}</span>
-                <Badge variant="default">{oddsResultado.vitoria_a}</Badge>
+                <span className="text-sm">{partida.time_a_nome}</span>
+                <span className="text-lg font-bold">{odds.resultado.timeA.toFixed(2)}</span>
               </Button>
               
               <Button
                 variant="outline"
-                className="h-auto p-4 flex flex-col items-center space-y-2"
+                className="flex flex-col p-4 h-auto"
                 onClick={() => adicionarSelecao({
-                  id: `resultado_empate_${Date.now()}`,
-                  descricao: 'Empate',
-                  odd: oddsResultado.empate,
                   categoria: 'RESULTADO_PARTIDA',
                   detalhe: 'EMPATE',
-                  partida_id: partida.partida_id
+                  odd: odds.resultado.empate
                 })}
               >
-                <span className="font-semibold">Empate</span>
-                <Badge variant="default">{oddsResultado.empate}</Badge>
+                <span className="text-sm">Empate</span>
+                <span className="text-lg font-bold">{odds.resultado.empate.toFixed(2)}</span>
               </Button>
               
               <Button
                 variant="outline"
-                className="h-auto p-4 flex flex-col items-center space-y-2"
+                className="flex flex-col p-4 h-auto"
                 onClick={() => adicionarSelecao({
-                  id: `resultado_vitoria_b_${Date.now()}`,
-                  descricao: `Vitória ${partida.time_b_nome}`,
-                  odd: oddsResultado.vitoria_b,
                   categoria: 'RESULTADO_PARTIDA',
                   detalhe: 'VITORIA_B',
-                  partida_id: partida.partida_id
+                  odd: odds.resultado.timeB
                 })}
               >
-                <span className="font-semibold">{partida.time_b_nome}</span>
-                <Badge variant="default">{oddsResultado.vitoria_b}</Badge>
+                <span className="text-sm">{partida.time_b_nome}</span>
+                <span className="text-lg font-bold">{odds.resultado.timeB.toFixed(2)}</span>
               </Button>
             </div>
           </CardContent>
@@ -121,90 +178,105 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
         {/* Mercados de Jogadores */}
         <Card>
           <CardHeader>
-            <CardTitle>Mercados de Jogadores</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Mercados de Jogadores
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[...escalacoes.timeA, ...escalacoes.timeB].map(player => {
-                const odds = calcularOddsJogador(player);
-                
+              {odds.jogadores.map((jogadorOdds: any) => {
+                const jogador = jogadores.find(j => j.id === jogadorOdds.id);
+                if (!jogador) return null;
+
+                const isOwnPlayer = profile?.user_id && jogador.user_id === profile.user_id;
+
                 return (
-                  <div key={player.id} className="border rounded-lg p-4">
-                    <h4 className="font-semibold mb-3">{player.jogador} ({player.posicao})</h4>
+                  <div key={jogador.id} className={`p-4 border rounded-lg ${isOwnPlayer ? 'bg-red-50 border-red-200' : ''}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold">{jogador.jogador}</h4>
+                        {isOwnPlayer && <Badge variant="destructive">Você</Badge>}
+                      </div>
+                      <Badge variant="outline">
+                        Nota: {jogador.nota.toFixed(1)}
+                      </Badge>
+                    </div>
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {/* Gols */}
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex flex-col items-center space-y-1"
+                        disabled={isOwnPlayer}
                         onClick={() => adicionarSelecao({
-                          id: `gol_${player.id}_${Date.now()}`,
-                          descricao: `${player.jogador} +0.5 Gols`,
-                          odd: odds.gol_05,
                           categoria: 'MERCADO_JOGADOR',
-                          detalhe: 'GOLS_MAIS_0.5',
-                          jogador_id: player.id,
-                          partida_id: partida.partida_id
+                          detalhe: `GOLS_MAIS_0.5_${jogador.id}`,
+                          odd: jogadorOdds.gols_0_5,
+                          jogadorAlvo: jogador
                         })}
                       >
-                        <span className="text-xs">+0.5 Gols</span>
-                        <Badge variant="secondary" className="text-xs">{odds.gol_05}</Badge>
+                        <div className="text-center">
+                          <div className="text-xs">+0.5 Gols</div>
+                          <div className="font-bold">{jogadorOdds.gols_0_5.toFixed(2)}</div>
+                        </div>
                       </Button>
 
+                      {/* Assistências */}
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex flex-col items-center space-y-1"
+                        disabled={isOwnPlayer}
                         onClick={() => adicionarSelecao({
-                          id: `assist_${player.id}_${Date.now()}`,
-                          descricao: `${player.jogador} +0.5 Assistências`,
-                          odd: odds.assist_05,
                           categoria: 'MERCADO_JOGADOR',
-                          detalhe: 'ASSISTENCIAS_MAIS_0.5',
-                          jogador_id: player.id,
-                          partida_id: partida.partida_id
+                          detalhe: `ASSIST_MAIS_0.5_${jogador.id}`,
+                          odd: jogadorOdds.assistencias_0_5,
+                          jogadorAlvo: jogador
                         })}
                       >
-                        <span className="text-xs">+0.5 Assist</span>
-                        <Badge variant="secondary" className="text-xs">{odds.assist_05}</Badge>
+                        <div className="text-center">
+                          <div className="text-xs">+0.5 Assist</div>
+                          <div className="font-bold">{jogadorOdds.assistencias_0_5.toFixed(2)}</div>
+                        </div>
                       </Button>
 
-                      {player.posicao !== 'Goleiro' && (
+                      {/* Desarmes (se aplicável) */}
+                      {jogador.desarmes > 0 && (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex flex-col items-center space-y-1"
+                          disabled={isOwnPlayer}
                           onClick={() => adicionarSelecao({
-                            id: `desarme_${player.id}_${Date.now()}`,
-                            descricao: `${player.jogador} +1.5 Desarmes`,
-                            odd: odds.desarme_15,
                             categoria: 'MERCADO_JOGADOR',
-                            detalhe: 'DESARMES_MAIS_1.5',
-                            jogador_id: player.id,
-                            partida_id: partida.partida_id
+                            detalhe: `DESARMES_MAIS_1.5_${jogador.id}`,
+                            odd: jogadorOdds.desarmes_1_5,
+                            jogadorAlvo: jogador
                           })}
                         >
-                          <span className="text-xs">+1.5 Desarmes</span>
-                          <Badge variant="secondary" className="text-xs">{odds.desarme_15}</Badge>
+                          <div className="text-center">
+                            <div className="text-xs">+1.5 Desarmes</div>
+                            <div className="font-bold">{jogadorOdds.desarmes_1_5.toFixed(2)}</div>
+                          </div>
                         </Button>
                       )}
 
-                      {player.posicao === 'Goleiro' && (
+                      {/* Defesas (se aplicável) */}
+                      {jogador.defesas > 0 && (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex flex-col items-center space-y-1"
+                          disabled={isOwnPlayer}
                           onClick={() => adicionarSelecao({
-                            id: `defesa_${player.id}_${Date.now()}`,
-                            descricao: `${player.jogador} +2.5 Defesas`,
-                            odd: odds.defesa_25,
                             categoria: 'MERCADO_JOGADOR',
-                            detalhe: 'DEFESAS_MAIS_2.5',
-                            jogador_id: player.id,
-                            partida_id: partida.partida_id
+                            detalhe: `DEFESAS_MAIS_2.5_${jogador.id}`,
+                            odd: jogadorOdds.defesas_2_5,
+                            jogadorAlvo: jogador
                           })}
                         >
-                          <span className="text-xs">+2.5 Defesas</span>
-                          <Badge variant="secondary" className="text-xs">{odds.defesa_25}</Badge>
+                          <div className="text-center">
+                            <div className="text-xs">+2.5 Defesas</div>
+                            <div className="font-bold">{jogadorOdds.defesas_2_5.toFixed(2)}</div>
+                          </div>
                         </Button>
                       )}
                     </div>
@@ -220,8 +292,8 @@ const MercadosAposta: React.FC<MercadosApostaProps> = ({ jogadores, partida }) =
       <div className="lg:col-span-1">
         <BilheteAposta 
           selecoes={selecoes}
-          onRemoverSelecao={removerSelecao}
-          onLimparBilhete={() => setSelecoes([])}
+          onRemoveSelecao={removerSelecao}
+          partida={partida}
         />
       </div>
     </div>
