@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Tables } from "@/integrations/supabase/types";
 import { generateTeams } from "@/utils/teamFormation";
 import CampoFutebol from "./CampoFutebol";
@@ -13,7 +14,15 @@ interface EscalacoesViewNewProps {
 const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
   const [showTeam, setShowTeam] = useState<'A' | 'B' | 'AMBOS'>('AMBOS');
   
-  const escalacoes = generateTeams(jogadores);
+  const { timeA, timeB, reservas } = generateTeams(jogadores);
+
+  const getStatusColor = (status: string | null) => {
+    switch (status) {
+      case 'Lesionado': return 'destructive';
+      case 'Disponível': return 'default';
+      default: return 'secondary';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -42,12 +51,42 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
             </Select>
           </div>
 
-          {/* Campo de futebol */}
-          <CampoFutebol 
-            timeA={escalacoes.timeA.jogadores}
-            timeB={escalacoes.timeB.jogadores}
-            showTeam={showTeam}
-          />
+          <div className="flex gap-6">
+            {/* Campo de futebol */}
+            <div className="flex-1">
+              <CampoFutebol 
+                timeA={timeA.jogadores}
+                timeB={timeB.jogadores}
+                showTeam={showTeam}
+              />
+            </div>
+
+            {/* Reservas na lateral */}
+            {reservas.length > 0 && (
+              <div className="w-64">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Reservas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {reservas.map((player) => (
+                        <div key={player.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div>
+                            <p className="text-sm font-medium">{player.jogador}</p>
+                            <p className="text-xs text-gray-500">Nota: {player.nota.toFixed(1)}</p>
+                          </div>
+                          <Badge variant={getStatusColor(player.status)}>
+                            {player.status === 'Lesionado' ? 'Lesionado' : 'Reserva'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -59,9 +98,9 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p><strong>Formação:</strong> {escalacoes.timeA.formacao}</p>
-              <p><strong>Nota Total:</strong> {escalacoes.timeA.notaTotal.toFixed(1)}</p>
-              <p><strong>Média:</strong> {(escalacoes.timeA.notaTotal / escalacoes.timeA.jogadores.length).toFixed(1)}</p>
+              <p><strong>Formação:</strong> {timeA.formacao}</p>
+              <p><strong>Nota Total:</strong> {timeA.notaTotal.toFixed(1)}</p>
+              <p><strong>Média:</strong> {(timeA.notaTotal / timeA.jogadores.length).toFixed(1)}</p>
             </div>
           </CardContent>
         </Card>
@@ -72,9 +111,9 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p><strong>Formação:</strong> {escalacoes.timeB.formacao}</p>
-              <p><strong>Nota Total:</strong> {escalacoes.timeB.notaTotal.toFixed(1)}</p>
-              <p><strong>Média:</strong> {(escalacoes.timeB.notaTotal / escalacoes.timeB.jogadores.length).toFixed(1)}</p>
+              <p><strong>Formação:</strong> {timeB.formacao}</p>
+              <p><strong>Nota Total:</strong> {timeB.notaTotal.toFixed(1)}</p>
+              <p><strong>Média:</strong> {(timeB.notaTotal / timeB.jogadores.length).toFixed(1)}</p>
             </div>
           </CardContent>
         </Card>

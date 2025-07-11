@@ -11,7 +11,7 @@ import AdminDashboard from '@/components/admin/AdminDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Loader2 } from 'lucide-react';
-import { recalcularTodasAsNotas } from '@/utils/playerNotesCalculatorNew';
+import { recalcularTodasAsNotas } from '@/utils/playerNotesCalculator';
 
 const AppContent = () => {
   const { user, profile, loading } = useAuth();

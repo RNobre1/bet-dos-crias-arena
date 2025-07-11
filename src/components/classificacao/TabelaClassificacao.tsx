@@ -3,16 +3,17 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tables } from "@/integrations/supabase/types";
-import { calcularNotaJogador } from "@/utils/oddsCalculator";
+import { calculatePlayerNote } from "@/utils/playerNotesCalculator";
 
 interface TabelaClassificacaoProps {
   jogadores: Tables<"players">[];
 }
 
 const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) => {
+  // Calcular notas usando a fórmula correta
   const jogadoresComNota = jogadores.map(player => ({
     ...player,
-    notaCalculada: calcularNotaJogador(player)
+    notaCalculada: calculatePlayerNote(player, jogadores)
   })).sort((a, b) => b.notaCalculada - a.notaCalculada);
 
   const getStatusColor = (status: string | null) => {

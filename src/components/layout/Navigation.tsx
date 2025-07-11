@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Trophy, Users, Calendar, TrendingUp, LogOut } from "lucide-react";
+import { Trophy, Users, TrendingUp, LogOut } from "lucide-react";
 
 interface NavigationProps {
   currentPage: string;
@@ -16,7 +16,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
     { id: 'classificacao', label: 'Classificação', icon: Trophy },
     { id: 'escalacoes', label: 'Escalações', icon: Users },
     { id: 'apostas', label: 'Apostas', icon: TrendingUp },
-    { id: 'historico', label: 'Histórico', icon: Calendar },
   ];
 
   if (profile?.role === 'ADMIN') {

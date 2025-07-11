@@ -18,9 +18,10 @@ export interface Team {
   formacao: string;
 }
 
-export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; timeB: Team } => {
-  // Filtrar jogadores disponíveis
+export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; timeB: Team; reservas: Tables<"players">[] } => {
+  // Filtro 1: Separar lesionados para reservas
   const jogadoresDisponiveis = jogadores.filter(j => j.status !== 'Lesionado');
+  const reservas = jogadores.filter(j => j.status === 'Lesionado');
   
   // Calcular pontuações de posição para cada jogador
   const jogadoresComPontuacao: TeamPlayer[] = jogadoresDisponiveis.map(jogador => ({
@@ -28,15 +29,11 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     positionScores: calculatePositionScores(jogador)
   }));
 
-  // Separar jogadores lesionados para reservas
-  const reservas = jogadores.filter(j => j.status === 'Lesionado');
-
-  // Algoritmo de draft estratégico
   const timeA: TeamPlayer[] = [];
   const timeB: TeamPlayer[] = [];
   const jogadoresRestantes = [...jogadoresComPontuacao];
 
-  // 1. Seleção de Goleiros
+  // Filtro 2: Seleção de Goleiros
   const goleiros = jogadoresRestantes
     .filter(j => j.positionScores.goleiro > 0)
     .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro);
@@ -55,8 +52,21 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     const indexB = jogadoresRestantes.findIndex(j => j.id === goleiroB.id);
     jogadoresRestantes.splice(Math.max(indexA, indexB), 1);
     jogadoresRestantes.splice(Math.min(indexA, indexB), 1);
+  } else if (goleiros.length === 1) {
+    // Apenas 1 goleiro especialista
+    const goleiroA = goleiros[0];
+    goleiroA.assignedPosition = 'goleiro';
+    timeA.push(goleiroA);
+    jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === goleiroA.id), 1);
+    
+    // Time B recebe um "Goleiro-Linha" (jogador mais defensivo)
+    const maisDefensivo = jogadoresRestantes
+      .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro)[0];
+    maisDefensivo.assignedPosition = 'goleiro';
+    timeB.push(maisDefensivo);
+    jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === maisDefensivo.id), 1);
   } else {
-    // Improvisar goleiros
+    // Nenhum goleiro especialista - improvisar dois goleiros-linha
     const melhoresDefensivos = jogadoresRestantes
       .sort((a, b) => b.positionScores.goleiro - a.positionScores.goleiro);
     
@@ -73,17 +83,20 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     }
   }
 
-  // 2. Garantir pelo menos 1 atacante e 1 volante por time
-  const atacantes = jogadoresRestantes
+  // Filtro 3: Preenchimento Obrigatório (Garantia Tática)
+  // Dividir jogadores em especialistas
+  const especialistasAtaque = jogadoresRestantes
+    .filter(j => j.positionScores.atacante > j.positionScores.volante)
     .sort((a, b) => b.positionScores.atacante - a.positionScores.atacante);
   
-  const volantes = jogadoresRestantes
+  const especialistasMeioCampo = jogadoresRestantes
+    .filter(j => j.positionScores.volante >= j.positionScores.atacante)
     .sort((a, b) => b.positionScores.volante - a.positionScores.volante);
 
-  // Adicionar melhores atacantes
-  if (atacantes.length >= 2) {
-    const atacanteA = atacantes[0];
-    const atacanteB = atacantes[1];
+  // Garantir pelo menos 1 atacante por time
+  if (especialistasAtaque.length >= 2) {
+    const atacanteA = especialistasAtaque[0];
+    const atacanteB = especialistasAtaque[1];
     atacanteA.assignedPosition = 'atacante';
     atacanteB.assignedPosition = 'atacante';
     timeA.push(atacanteA);
@@ -93,8 +106,8 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === atacanteB.id), 1);
   }
 
-  // Adicionar melhores volantes (que não sejam os atacantes já selecionados)
-  const volantesDisponiveis = volantes.filter(v => 
+  // Garantir pelo menos 1 volante por time (que não sejam os atacantes já selecionados)
+  const volantesDisponiveis = especialistasMeioCampo.filter(v => 
     !timeA.some(t => t.id === v.id) && !timeB.some(t => t.id === v.id)
   );
   
@@ -110,13 +123,13 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === volanteB.id), 1);
   }
 
-  // 3. Balanceamento final
+  // Filtro 4: Balanceamento Final das Vagas Restantes
   while (timeA.length < 5 && timeB.length < 5 && jogadoresRestantes.length > 0) {
     // Calcular nota total atual de cada time
     const notaTimeA = timeA.reduce((sum, j) => sum + j.nota, 0);
     const notaTimeB = timeB.reduce((sum, j) => sum + j.nota, 0);
 
-    // Selecionar melhor jogador disponível
+    // Selecionar melhor jogador disponível por aptidão de linha
     const melhorJogador = jogadoresRestantes.reduce((melhor, atual) => {
       const pontuacaoAtual = Math.max(atual.positionScores.atacante, atual.positionScores.volante);
       const pontuacaoMelhor = Math.max(melhor.positionScores.atacante, melhor.positionScores.volante);
@@ -137,6 +150,9 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     // Remover da lista
     jogadoresRestantes.splice(jogadoresRestantes.findIndex(j => j.id === melhorJogador.id), 1);
   }
+
+  // Adicionar jogadores restantes aos reservas
+  reservas.push(...jogadoresRestantes);
 
   // Calcular formações
   const getFormacao = (time: TeamPlayer[]): string => {
@@ -160,5 +176,5 @@ export const generateTeams = (jogadores: Tables<"players">[]): { timeA: Team; ti
     formacao: getFormacao(timeB)
   };
 
-  return { timeA: timeAFinal, timeB: timeBFinal };
+  return { timeA: timeAFinal, timeB: timeBFinal, reservas };
 };
