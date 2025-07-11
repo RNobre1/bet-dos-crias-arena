@@ -1,3 +1,4 @@
+
 import { Tables } from "@/integrations/supabase/types";
 
 export const calculatePlayerNote = (player: Tables<"players">, allPlayers: Tables<"players">[]): number => {
@@ -190,6 +191,9 @@ export const calculateOdds = (timeA: Tables<"players">[], timeB: Tables<"players
     jogadores: jogadoresOdds
   };
 };
+
+// Alias para compatibilidade
+export const calcularOdds = calculateOdds;
 
 export const gerarEscalacoes = (jogadores: Tables<"players">[]) => {
   // Filtrar jogadores ativos e calcular a nota de cada um

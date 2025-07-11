@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { gerarEscalacoes } from "@/utils/teamFormation";
+import { generateTeams } from "@/utils/teamFormation";
 
 interface PartidaFormProps {
   onPartidaCriada: () => void;
@@ -55,7 +55,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
     setLoading(true);
     try {
       // Gerar escalações automaticamente
-      const escalacoes = gerarEscalacoes(jogadores);
+      const escalacoes = generateTeams(jogadores);
       
       if (!escalacoes) {
         toast.error('Não foi possível gerar escalações válidas com os jogadores disponíveis');
@@ -68,8 +68,8 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
           time_a_nome: timeANome,
           time_b_nome: timeBNome,
           data_partida: new Date(dataPartida).toISOString(),
-          time_a_jogadores: escalacoes.timeA.map(j => j.id),
-          time_b_jogadores: escalacoes.timeB.map(j => j.id),
+          time_a_jogadores: escalacoes.timeA.jogadores.map(j => j.id),
+          time_b_jogadores: escalacoes.timeB.jogadores.map(j => j.id),
           status: 'AGENDADA'
         })
         .select()

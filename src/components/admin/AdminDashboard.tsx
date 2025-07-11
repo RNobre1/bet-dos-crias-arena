@@ -168,8 +168,8 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <PartidaForm 
-                partidaAtiva={partidaAtiva} 
-                onPartidaUpdate={() => loadDashboardData()} 
+                onPartidaCriada={() => loadDashboardData()} 
+                onCancel={() => {}}
               />
             </CardContent>
           </Card>
