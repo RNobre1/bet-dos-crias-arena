@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,12 +87,31 @@ const ResultadoForm: React.FC = () => {
       ];
 
       console.log('Jogadores escalados:', jogadoresEscalados);
+      console.log('Estado completo de resultados antes do processamento:', resultados);
 
       // Atualizar estatísticas dos jogadores
       for (const jogadorId of jogadoresEscalados) {
-        const stats = resultados[jogadorId] || { gols: 0, assistencias: 0, desarmes: 0, defesas: 0, faltas: 0 };
+        // Garantir que todas as estatísticas tenham valores numéricos válidos
+        const statsRaw = resultados[jogadorId] || {};
+        const stats = {
+          gols: Number(statsRaw.gols) || 0,
+          assistencias: Number(statsRaw.assistencias) || 0,
+          desarmes: Number(statsRaw.desarmes) || 0,
+          defesas: Number(statsRaw.defesas) || 0,
+          faltas: Number(statsRaw.faltas) || 0
+        };
         
-        console.log(`Atualizando estatísticas de ${jogadorId}:`, stats);
+        console.log(`Estatísticas processadas para ${jogadorId}:`, stats);
+
+        // Validar se todos os valores são números válidos
+        const isValidStats = Object.values(stats).every(value => 
+          typeof value === 'number' && !isNaN(value) && isFinite(value)
+        );
+
+        if (!isValidStats) {
+          console.error(`Estatísticas inválidas para jogador ${jogadorId}:`, stats);
+          throw new Error(`Estatísticas inválidas para jogador ${jogadorId}`);
+        }
 
         // Primeiro, buscar os valores atuais do jogador
         const { data: jogadorAtual, error: fetchError } = await supabase
@@ -107,16 +125,31 @@ const ResultadoForm: React.FC = () => {
           throw fetchError;
         }
 
-        // Calcular novos valores
+        console.log(`Valores atuais do jogador ${jogadorId}:`, jogadorAtual);
+
+        // Calcular novos valores garantindo que todos sejam números válidos
         const novosValores = {
-          jogos: (jogadorAtual?.jogos || 0) + 1,
-          gols: (jogadorAtual?.gols || 0) + stats.gols,
-          assistencias: (jogadorAtual?.assistencias || 0) + stats.assistencias,
-          desarmes: (jogadorAtual?.desarmes || 0) + stats.desarmes,
-          defesas: (jogadorAtual?.defesas || 0) + stats.defesas,
-          faltas: (jogadorAtual?.faltas || 0) + stats.faltas,
+          jogos: Number(jogadorAtual?.jogos || 0) + 1,
+          gols: Number(jogadorAtual?.gols || 0) + stats.gols,
+          assistencias: Number(jogadorAtual?.assistencias || 0) + stats.assistencias,
+          desarmes: Number(jogadorAtual?.desarmes || 0) + stats.desarmes,
+          defesas: Number(jogadorAtual?.defesas || 0) + stats.defesas,
+          faltas: Number(jogadorAtual?.faltas || 0) + stats.faltas,
           updated_at: new Date().toISOString()
         };
+
+        console.log(`Novos valores calculados para ${jogadorId}:`, novosValores);
+
+        // Validar novos valores antes da atualização
+        const isValidUpdate = Object.entries(novosValores).every(([key, value]) => {
+          if (key === 'updated_at') return true;
+          return typeof value === 'number' && !isNaN(value) && isFinite(value);
+        });
+
+        if (!isValidUpdate) {
+          console.error(`Valores de atualização inválidos para jogador ${jogadorId}:`, novosValores);
+          throw new Error(`Valores de atualização inválidos para jogador ${jogadorId}`);
+        }
 
         const { error: updateError } = await supabase
           .from('players')
@@ -309,13 +342,29 @@ const ResultadoForm: React.FC = () => {
   };
 
   const handleResultadoChange = (jogadorId: string, campo: string, valor: number) => {
-    setResultados(prev => ({
-      ...prev,
-      [jogadorId]: {
-        ...prev[jogadorId],
-        [campo]: valor
-      }
-    }));
+    console.log(`Alterando ${campo} para jogador ${jogadorId}: ${valor}`);
+    
+    setResultados(prev => {
+      const currentStats = prev[jogadorId] || {
+        gols: 0,
+        assistencias: 0,
+        desarmes: 0,
+        defesas: 0,
+        faltas: 0
+      };
+
+      const newStats = {
+        ...currentStats,
+        [campo]: Number(valor) || 0
+      };
+
+      console.log(`Novo estado para jogador ${jogadorId}:`, newStats);
+
+      return {
+        ...prev,
+        [jogadorId]: newStats
+      };
+    });
   };
 
   const handlePartidaChange = async (partidaId: string) => {
