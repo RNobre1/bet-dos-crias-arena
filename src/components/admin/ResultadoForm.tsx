@@ -9,10 +9,17 @@ import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
+interface JogadorData {
+  id: string;
+  jogador: string;
+}
+
 const ResultadoForm: React.FC = () => {
   const { profile } = useAuth();
   const [partidas, setPartidas] = useState<Tables<"partidas">[]>([]);
   const [partidaSelecionada, setPartidaSelecionada] = useState<Tables<"partidas"> | null>(null);
+  const [jogadores, setJogadores] = useState<JogadorData[]>([]);
+  const [carregandoJogadores, setCarregandoJogadores] = useState(false);
   const [resultados, setResultados] = useState<{ [key: string]: { gols: number; assistencias: number; desarmes: number; defesas: number; faltas: number } }>({});
   const [placar, setPlacar] = useState({ timeA: 0, timeB: 0 });
   const [processando, setProcessando] = useState(false);
@@ -36,6 +43,28 @@ const ResultadoForm: React.FC = () => {
     } catch (error) {
       console.error('Erro ao carregar partidas:', error);
       toast.error('Erro ao carregar partidas');
+    }
+  };
+
+  const loadJogadores = async (jogadorIds: string[]) => {
+    if (!jogadorIds.length) return;
+    
+    setCarregandoJogadores(true);
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, jogador')
+        .in('id', jogadorIds);
+
+      if (error) throw error;
+      
+      setJogadores(data || []);
+      console.log('Jogadores carregados:', data);
+    } catch (error) {
+      console.error('Erro ao carregar jogadores:', error);
+      toast.error('Erro ao carregar dados dos jogadores');
+    } finally {
+      setCarregandoJogadores(false);
     }
   };
 
@@ -119,6 +148,7 @@ const ResultadoForm: React.FC = () => {
 
       toast.success('Resultado processado com sucesso!');
       setPartidaSelecionada(null);
+      setJogadores([]);
       setResultados({});
       setPlacar({ timeA: 0, timeB: 0 });
       loadPartidas();
@@ -288,6 +318,32 @@ const ResultadoForm: React.FC = () => {
     }));
   };
 
+  const handlePartidaChange = async (partidaId: string) => {
+    const partida = partidas.find(p => p.partida_id === Number(partidaId));
+    setPartidaSelecionada(partida || null);
+    
+    if (partida) {
+      // Limpar estados anteriores
+      setJogadores([]);
+      setResultados({});
+      
+      // Buscar dados dos jogadores escalados
+      const jogadoresEscalados = [
+        ...(partida.time_a_jogadores || []),
+        ...(partida.time_b_jogadores || [])
+      ];
+      
+      if (jogadoresEscalados.length > 0) {
+        await loadJogadores(jogadoresEscalados);
+      }
+    }
+  };
+
+  const getNomeJogador = (jogadorId: string): string => {
+    const jogador = jogadores.find(j => j.id === jogadorId);
+    return jogador ? jogador.jogador : `Jogador ${jogadorId.substring(0, 8)}...`;
+  };
+
   if (profile?.role !== 'ADMIN') {
     return (
       <Card>
@@ -311,10 +367,7 @@ const ResultadoForm: React.FC = () => {
               id="partida"
               className="w-full mt-1 p-2 border rounded-md"
               value={partidaSelecionada?.partida_id || ''}
-              onChange={(e) => {
-                const partida = partidas.find(p => p.partida_id === Number(e.target.value));
-                setPartidaSelecionada(partida || null);
-              }}
+              onChange={(e) => handlePartidaChange(e.target.value)}
             >
               <option value="">Selecione uma partida</option>
               {partidas.map(partida => (
@@ -352,64 +405,72 @@ const ResultadoForm: React.FC = () => {
 
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Estatísticas dos Jogadores</h3>
-                {[...(partidaSelecionada.time_a_jogadores || []), ...(partidaSelecionada.time_b_jogadores || [])].map(jogadorId => (
-                  <div key={jogadorId} className="border rounded-lg p-4">
-                    <h4 className="font-medium mb-2">Jogador ID: {jogadorId}</h4>
-                    <div className="grid grid-cols-5 gap-2">
-                      <div>
-                        <Label>Gols</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={resultados[jogadorId]?.gols || 0}
-                          onChange={(e) => handleResultadoChange(jogadorId, 'gols', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <Label>Assistências</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={resultados[jogadorId]?.assistencias || 0}
-                          onChange={(e) => handleResultadoChange(jogadorId, 'assistencias', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <Label>Desarmes</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={resultados[jogadorId]?.desarmes || 0}
-                          onChange={(e) => handleResultadoChange(jogadorId, 'desarmes', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <Label>Defesas</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={resultados[jogadorId]?.defesas || 0}
-                          onChange={(e) => handleResultadoChange(jogadorId, 'defesas', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <Label>Faltas</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={resultados[jogadorId]?.faltas || 0}
-                          onChange={(e) => handleResultadoChange(jogadorId, 'faltas', Number(e.target.value))}
-                        />
+                {carregandoJogadores ? (
+                  <div className="text-center py-4">
+                    <p className="text-gray-600">Carregando dados dos jogadores...</p>
+                  </div>
+                ) : (
+                  [...(partidaSelecionada.time_a_jogadores || []), ...(partidaSelecionada.time_b_jogadores || [])].map(jogadorId => (
+                    <div key={jogadorId} className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-2 text-blue-600">
+                        {getNomeJogador(jogadorId)}
+                      </h4>
+                      <div className="grid grid-cols-5 gap-2">
+                        <div>
+                          <Label>Gols</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={resultados[jogadorId]?.gols || 0}
+                            onChange={(e) => handleResultadoChange(jogadorId, 'gols', Number(e.target.value))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Assistências</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={resultados[jogadorId]?.assistencias || 0}
+                            onChange={(e) => handleResultadoChange(jogadorId, 'assistencias', Number(e.target.value))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Desarmes</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={resultados[jogadorId]?.desarmes || 0}
+                            onChange={(e) => handleResultadoChange(jogadorId, 'desarmes', Number(e.target.value))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Defesas</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={resultados[jogadorId]?.defesas || 0}
+                            onChange={(e) => handleResultadoChange(jogadorId, 'defesas', Number(e.target.value))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Faltas</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={resultados[jogadorId]?.faltas || 0}
+                            onChange={(e) => handleResultadoChange(jogadorId, 'faltas', Number(e.target.value))}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               <Button 
                 onClick={processarResultado} 
                 className="w-full"
-                disabled={processando}
+                disabled={processando || carregandoJogadores}
               >
                 {processando ? 'Processando...' : 'Processar Resultado'}
               </Button>
