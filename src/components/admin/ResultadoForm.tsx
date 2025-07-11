@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,13 +14,21 @@ interface JogadorData {
   jogador: string;
 }
 
+interface PlayerStats {
+  gols: number;
+  assistencias: number;
+  desarmes: number;
+  defesas: number;
+  faltas: number;
+}
+
 const ResultadoForm: React.FC = () => {
   const { profile } = useAuth();
   const [partidas, setPartidas] = useState<Tables<"partidas">[]>([]);
   const [partidaSelecionada, setPartidaSelecionada] = useState<Tables<"partidas"> | null>(null);
   const [jogadores, setJogadores] = useState<JogadorData[]>([]);
   const [carregandoJogadores, setCarregandoJogadores] = useState(false);
-  const [resultados, setResultados] = useState<{ [key: string]: { gols: number; assistencias: number; desarmes: number; defesas: number; faltas: number } }>({});
+  const [resultados, setResultados] = useState<{ [key: string]: PlayerStats }>({});
   const [placar, setPlacar] = useState({ timeA: 0, timeB: 0 });
   const [processando, setProcessando] = useState(false);
 
@@ -92,8 +101,15 @@ const ResultadoForm: React.FC = () => {
       // Atualizar estatísticas dos jogadores
       for (const jogadorId of jogadoresEscalados) {
         // Garantir que todas as estatísticas tenham valores numéricos válidos
-        const statsRaw = resultados[jogadorId] || {};
-        const stats = {
+        const statsRaw = resultados[jogadorId] || {
+          gols: 0,
+          assistencias: 0,
+          desarmes: 0,
+          defesas: 0,
+          faltas: 0
+        };
+        
+        const stats: PlayerStats = {
           gols: Number(statsRaw.gols) || 0,
           assistencias: Number(statsRaw.assistencias) || 0,
           desarmes: Number(statsRaw.desarmes) || 0,
@@ -345,7 +361,7 @@ const ResultadoForm: React.FC = () => {
     console.log(`Alterando ${campo} para jogador ${jogadorId}: ${valor}`);
     
     setResultados(prev => {
-      const currentStats = prev[jogadorId] || {
+      const currentStats: PlayerStats = prev[jogadorId] || {
         gols: 0,
         assistencias: 0,
         desarmes: 0,
@@ -353,7 +369,7 @@ const ResultadoForm: React.FC = () => {
         faltas: 0
       };
 
-      const newStats = {
+      const newStats: PlayerStats = {
         ...currentStats,
         [campo]: Number(valor) || 0
       };
