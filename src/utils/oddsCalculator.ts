@@ -1,3 +1,4 @@
+
 import { Tables } from "@/integrations/supabase/types";
 
 export const calculatePlayerNote = (player: Tables<"players">, allPlayers: Tables<"players">[]): number => {
@@ -69,24 +70,25 @@ export const calculateOdds = (timeA: Tables<"players">[], timeB: Tables<"players
   const notaTotalA = timeA.reduce((sum, player) => sum + player.nota, 0);
   const notaTotalB = timeB.reduce((sum, player) => sum + player.nota, 0);
   
-  // Passo 1.2: Calcular as Probabilidades Base
+  // Passo 1.1: Calcular as Probabilidades Base
   const probVitoriaABase = notaTotalA / (notaTotalA + notaTotalB);
   const probVitoriaBBase = notaTotalB / (notaTotalA + notaTotalB);
-  const probEmpateBase = (1 - Math.abs(notaTotalA - notaTotalB) / Math.max(notaTotalA, notaTotalB)) * 0.4;
+  const diferenca = Math.abs(notaTotalA - notaTotalB);
+  const probEmpateBase = (1 - (diferenca / Math.max(notaTotalA, notaTotalB))) * 0.6;
 
-  // Passo 1.3: Normalizar as Probabilidades
+  // Passo 1.2: Normalizar as Probabilidades
   const somaProbs = probVitoriaABase + probVitoriaBBase + probEmpateBase;
   const probVitoriaANorm = probVitoriaABase / somaProbs;
   const probVitoriaBNorm = probVitoriaBBase / somaProbs;
   const probEmpateNorm = probEmpateBase / somaProbs;
 
-  // Passo 1.4: Aplicar a Margem da Casa (15%)
+  // Passo 1.3: Aplicar a Margem da Casa (15%)
   const margemCasa = 1.15;
   const probVitoriaAImplicita = probVitoriaANorm * margemCasa;
   const probVitoriaBImplicita = probVitoriaBNorm * margemCasa;
   const probEmpateImplicita = probEmpateNorm * margemCasa;
 
-  // Passo 1.5: Calcular Odds com Piso Mínimo
+  // Passo 1.4: Calcular Odds com Piso Mínimo
   const oddTimeA = Math.max(1 / probVitoriaAImplicita, 1.01);
   const oddTimeB = Math.max(1 / probVitoriaBImplicita, 1.01);
   const oddEmpate = Math.max(1 / probEmpateImplicita, 1.01);
@@ -96,19 +98,16 @@ export const calculateOdds = (timeA: Tables<"players">[], timeB: Tables<"players
     if (jogador.jogos === 0) {
       return {
         id: jogador.id,
-        // Gols
+        // Odds padrão para jogadores sem histórico
         gols_0_5: 3.50,
         gols_1_5: 8.00,
         gols_2_5: 15.00,
-        // Assistências
         assistencias_0_5: 4.00,
         assistencias_1_5: 9.00,
         assistencias_2_5: 18.00,
-        // Desarmes (apenas jogadores de linha)
         desarmes_1_5: 2.50,
         desarmes_2_5: 5.00,
         desarmes_3_5: 10.00,
-        // Defesas (apenas goleiros)
         defesas_2_5: 2.00,
         defesas_3_5: 4.00,
         defesas_4_5: 8.00
@@ -121,30 +120,66 @@ export const calculateOdds = (timeA: Tables<"players">[], timeB: Tables<"players
     const desarmesPorJogo = jogador.desarmes / jogador.jogos;
     const defesasPorJogo = jogador.defesas / jogador.jogos;
 
-    // Calcular probabilidades com fatores de confiança
-    // Gols
-    const probGols05 = Math.min(0.95, golsPorJogo * 1.20);
-    const probGols15 = Math.min(0.90, Math.pow(golsPorJogo / 1.5, 2) * 1.10);
-    const probGols25 = Math.min(0.85, Math.pow(golsPorJogo / 2.5, 3) * 1.05);
+    // Calcular probabilidades com fatores de confiança e ajustes de teto
+    
+    // GOLS
+    let probGols05 = golsPorJogo * 1.20; // Fator de confiança 1.20
+    probGols05 = Math.min(probGols05, 0.96); // Teto para eventos "quase certos"
+    
+    let probGols15 = Math.pow(golsPorJogo / 1.5, 2) * 1.10; // Fator de confiança 1.10
+    probGols15 = Math.min(probGols15, 0.575); // Teto ajustado
+    
+    let probGols25 = Math.pow(golsPorJogo / 2.5, 3) * 1.05; // Fator de confiança 1.05
+    probGols25 = Math.min(probGols25, 0.35); // Teto para eventos menos prováveis
 
-    // Assistências
-    const probAssist05 = Math.min(0.95, assistenciasPorJogo * 1.15);
-    const probAssist15 = Math.min(0.90, Math.pow(assistenciasPorJogo / 1.5, 2) * 1.10);
-    const probAssist25 = Math.min(0.85, Math.pow(assistenciasPorJogo / 2.5, 3) * 1.05);
+    // ASSISTÊNCIAS
+    let probAssist05 = assistenciasPorJogo * 1.15; // Fator de confiança 1.15
+    probAssist05 = Math.min(probAssist05, 0.64); // Teto ajustado
+    
+    let probAssist15 = Math.pow(assistenciasPorJogo / 1.5, 2) * 1.10;
+    probAssist15 = Math.min(probAssist15, 0.45);
+    
+    let probAssist25 = Math.pow(assistenciasPorJogo / 2.5, 3) * 1.05;
+    probAssist25 = Math.min(probAssist25, 0.25);
 
-    // Desarmes
-    const probDesarmes15 = Math.min(0.95, (desarmesPorJogo / 1.5) * 1.10);
-    const probDesarmes25 = Math.min(0.90, Math.pow(desarmesPorJogo / 2.5, 2) * 1.05);
-    const probDesarmes35 = Math.min(0.85, Math.pow(desarmesPorJogo / 3.5, 3) * 1.02);
+    // DESARMES (apenas jogadores de linha)
+    let probDesarmes15 = (desarmesPorJogo / 1.5) * 1.10;
+    probDesarmes15 = Math.min(probDesarmes15, 0.60);
+    
+    let probDesarmes25 = (desarmesPorJogo / 2.5) * 1.05;
+    probDesarmes25 = Math.min(probDesarmes25, 0.40);
+    
+    let probDesarmes35 = (desarmesPorJogo / 3.5) * 1.02;
+    probDesarmes35 = Math.min(probDesarmes35, 0.25);
 
-    // Defesas
-    const probDefesas25 = Math.min(0.95, (defesasPorJogo / 2.5) * 1.10);
-    const probDefesas35 = Math.min(0.90, Math.pow(defesasPorJogo / 3.5, 2) * 1.05);
-    const probDefesas45 = Math.min(0.85, Math.pow(defesasPorJogo / 4.5, 3) * 1.02);
+    // DEFESAS (apenas goleiros)
+    let probDefesas25 = (defesasPorJogo / 2.5) * 1.10;
+    probDefesas25 = Math.min(probDefesas25, 0.50);
+    
+    let probDefesas35 = (defesasPorJogo / 3.5) * 1.05;
+    probDefesas35 = Math.min(probDefesas35, 0.30);
+    
+    let probDefesas45 = (defesasPorJogo / 4.5) * 1.02;
+    probDefesas45 = Math.min(probDefesas45, 0.20);
+
+    // Garantir probabilidades mínimas para evitar odds muito altas
+    const minProb = 0.05; // 5% mínimo
+    probGols05 = Math.max(probGols05, minProb);
+    probGols15 = Math.max(probGols15, minProb);
+    probGols25 = Math.max(probGols25, minProb);
+    probAssist05 = Math.max(probAssist05, minProb);
+    probAssist15 = Math.max(probAssist15, minProb);
+    probAssist25 = Math.max(probAssist25, minProb);
+    probDesarmes15 = Math.max(probDesarmes15, minProb);
+    probDesarmes25 = Math.max(probDesarmes25, minProb);
+    probDesarmes35 = Math.max(probDesarmes35, minProb);
+    probDefesas25 = Math.max(probDefesas25, minProb);
+    probDefesas35 = Math.max(probDefesas35, minProb);
+    probDefesas45 = Math.max(probDefesas45, minProb);
 
     return {
       id: jogador.id,
-      // Gols
+      // Gols - convertendo probabilidade para odd com piso mínimo
       gols_0_5: Math.max(1 / probGols05, 1.01),
       gols_1_5: Math.max(1 / probGols15, 1.01),
       gols_2_5: Math.max(1 / probGols25, 1.01),
