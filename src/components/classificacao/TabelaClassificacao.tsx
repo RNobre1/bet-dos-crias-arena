@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -41,7 +42,11 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
               {index === 2 && " 🥉"}
             </span>
             <div>
-              <h3 className="font-semibold text-lg">{player.jogador}</h3>
+              <Link to={`/player/${player.id}`}>
+                <h3 className="font-semibold text-lg text-blue-600 hover:text-blue-800 cursor-pointer transition-colors">
+                  {player.jogador}
+                </h3>
+              </Link>
               <Badge variant={getStatusColor(player.status)} className="text-xs">
                 {player.status || 'N/A'}
               </Badge>
@@ -166,7 +171,11 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
                         {index === 1 && "🥈"} 
                         {index === 2 && "🥉"}
                       </td>
-                      <td className="p-2 font-medium">{player.jogador}</td>
+                     <td className="p-2 font-medium">
+                       <Link to={`/player/${player.id}`} className="text-blue-600 hover:text-blue-800 transition-colors">
+                         {player.jogador}
+                       </Link>
+                     </td>
                       <td className="p-2 text-center">
                         <Badge variant={index < 3 ? "default" : "secondary"} className="font-bold">
                           {player.notaCalculada.toFixed(1)}
