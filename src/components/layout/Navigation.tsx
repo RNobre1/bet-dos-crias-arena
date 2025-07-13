@@ -35,7 +35,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
       <div className="bg-green-800 text-white">
         {/* Mobile Header */}
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-lg font-bold">BET DOS CRIAS</h1>
+          <h1 className="text-lg font-bold">PRO VÁRZEA</h1>
           <div className="flex items-center space-x-2">
             <div className="text-right">
               <p className="text-xs opacity-90">@{profile?.username}</p>
@@ -114,7 +114,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
     <div className="bg-green-800 text-white p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-6">
-          <h1 className="text-2xl font-bold">BET DOS CRIAS</h1>
+          <h1 className="text-2xl font-bold">PRO VÁRZEA</h1>
           <nav className="flex space-x-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
