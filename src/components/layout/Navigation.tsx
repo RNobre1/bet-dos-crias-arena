@@ -114,7 +114,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
     <div className="bg-green-800 text-white p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-6">
-          <img src="public/favicon.ico" alt="Logo">
           <h1 className="text-2xl font-bold">PRO VÁRZEA</h1>
           <nav className="flex space-x-4">
             {menuItems.map((item) => {
