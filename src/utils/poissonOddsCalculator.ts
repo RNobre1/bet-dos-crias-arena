@@ -123,8 +123,8 @@ export const probabilityToOdds = (probability: number): number | null => {
   const odds = 1 / probability;
   
   // Se as odds forem muito altas (probabilidade muito baixa), considerar como infinito
-  if (odds > 999) {
-    return null;
+  if (odds > 100) {
+    odds = 100;
   }
   
   return odds;
