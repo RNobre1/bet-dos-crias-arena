@@ -27,12 +27,20 @@ export interface PlayerMarketOdds {
   desarmes: {
     under_3_5: number | null;
     under_2_5: number | null;
+    under_1_5: number | null;
+    under_0_5: number | null;
+    over_0_5: number | null;
     over_1_5: number | null;
     over_2_5: number | null;
     over_3_5: number | null;
   };
   defesas: {
     under_3_5: number | null;
+    under_2_5: number | null;
+    under_1_5: number | null;
+    under_0_5: number | null;
+    over_0_5: number | null;
+    over_1_5: number | null;
     over_2_5: number | null;
     over_3_5: number | null;
   };
@@ -169,12 +177,20 @@ export const calculatePlayerMarketOdds = (player: Tables<"players">): PlayerMark
     desarmes: {
       under_3_5: probabilityToOdds(poissonUnderProbability(4, lambdaDesarmes)),
       under_2_5: probabilityToOdds(poissonUnderProbability(3, lambdaDesarmes)),
+      under_1_5: probabilityToOdds(poissonUnderProbability(2, lambdaDesarmes)),
+      under_0_5: probabilityToOdds(poissonUnderProbability(1, lambdaDesarmes)),
+      over_0_5: probabilityToOdds(poissonOverProbability(1, lambdaDesarmes)),
       over_1_5: probabilityToOdds(poissonOverProbability(2, lambdaDesarmes)),
       over_2_5: probabilityToOdds(poissonOverProbability(3, lambdaDesarmes)),
       over_3_5: probabilityToOdds(poissonOverProbability(4, lambdaDesarmes)),
     },
     defesas: {
       under_3_5: probabilityToOdds(poissonUnderProbability(4, lambdaDefesas)),
+      under_2_5: probabilityToOdds(poissonUnderProbability(3, lambdaDefesas)),
+      under_1_5: probabilityToOdds(poissonUnderProbability(2, lambdaDefesas)),
+      under_0_5: probabilityToOdds(poissonUnderProbability(1, lambdaDefesas)),
+      over_0_5: probabilityToOdds(poissonOverProbability(1, lambdaDefesas)),
+      over_1_5: probabilityToOdds(poissonOverProbability(2, lambdaDefesas)),
       over_2_5: probabilityToOdds(poissonOverProbability(3, lambdaDefesas)),
       over_3_5: probabilityToOdds(poissonOverProbability(4, lambdaDefesas)),
     },
