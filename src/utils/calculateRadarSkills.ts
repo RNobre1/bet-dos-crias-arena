@@ -42,21 +42,23 @@ export const calculateRadarSkills = (player: Tables<"players">): RadarSkills => 
   // Passo 2: Cálculo dos 5 Atributos do Radar (Escala 20-99)
   
   // 1. Finalização (Shooting)
-  const maxGols = 1.0;
+  const maxGols = 3.0;
   const finalizacao = Math.min(99, (golsPorJogo / maxGols) * 80 + 20);
 
   // 2. Criação (Passing)
-  const maxAssist = 0.8;
+  const maxAssist = 3.0;
   const criacao = Math.min(99, (assistenciasPorJogo / maxAssist) * 80 + 20);
 
+  //TO-DO: Reavaliar benchmark posteriormente com mais infos
   // 3. Defesa (Defending)
-  const maxDef = 3.0;
+  const maxDef = 2.0;
   const defesa = Math.min(99, (pontuacaoDefensivaPorJogo / maxDef) * 80 + 20);
 
   // 4. Físico (Physicality)
-  const maxParticipacao = 8.0;
+  const maxParticipacao = 6.0;
   const fisico = Math.min(99, (mediaParticipacoesPorJogo / maxParticipacao) * 80 + 20);
 
+  //TO-DO: Reavaliar benchmark posteriormente com mais infos
   // 5. Disciplina (Discipline)
   const maxFaltas = 2.0;
   const disciplina = Math.max(20, 99 - (faltasPorJogo / maxFaltas) * 79);
