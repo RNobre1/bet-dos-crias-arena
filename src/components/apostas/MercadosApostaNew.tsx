@@ -377,6 +377,9 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
                 [
                   { key: 'under_3_5', label: '-3.5', detailPrefix: 'DESARMES_MENOS_3.5' },
                   { key: 'under_2_5', label: '-2.5', detailPrefix: 'DESARMES_MENOS_2.5' },
+                  { key: 'under_1_5', label: '-1.5', detailPrefix: 'DESARMES_MENOS_1.5' },
+                  { key: 'under_0_5', label: '-0.5', detailPrefix: 'DESARMES_MENOS_0.5' },
+                  { key: 'over_0_5', label: '+0.5', detailPrefix: 'DESARMES_MAIS_0.5' },
                   { key: 'over_1_5', label: '+1.5', detailPrefix: 'DESARMES_MAIS_1.5' },
                   { key: 'over_2_5', label: '+2.5', detailPrefix: 'DESARMES_MAIS_2.5' },
                   { key: 'over_3_5', label: '+3.5', detailPrefix: 'DESARMES_MAIS_3.5' }
@@ -390,6 +393,11 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
                 (playerOdds) => playerOdds.defesas,
                 [
                   { key: 'under_3_5', label: '-3.5', detailPrefix: 'DEFESAS_MENOS_3.5' },
+                  { key: 'under_2_5', label: '-2.5', detailPrefix: 'DEFESAS_MENOS_2.5' },
+                  { key: 'under_1_5', label: '-1.5', detailPrefix: 'DEFESAS_MENOS_1.5' },
+                  { key: 'under_0_5', label: '-0.5', detailPrefix: 'DEFESAS_MENOS_0.5' },
+                  { key: 'over_0_5', label: '+0.5', detailPrefix: 'DEFESAS_MAIS_0.5' },
+                  { key: 'over_1_5', label: '+1.5', detailPrefix: 'DEFESAS_MAIS_1.5' },
                   { key: 'over_2_5', label: '+2.5', detailPrefix: 'DEFESAS_MAIS_2.5' },
                   { key: 'over_3_5', label: '+3.5', detailPrefix: 'DEFESAS_MAIS_3.5' }
                 ]
