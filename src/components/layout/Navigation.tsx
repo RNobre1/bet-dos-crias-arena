@@ -39,7 +39,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
           <div className="flex items-center space-x-2">
             <div className="text-right">
               <p className="text-xs opacity-90">@{profile?.username}</p>
-              <p className="text-xs text-green-200">R$ {profile?.saldo_ficticio?.toFixed(2)}</p>
+              <p className="text-xs text-green-200">C$ {profile?.saldo_ficticio?.toFixed(2)}</p>
             </div>
             <Button
               variant="ghost"
@@ -136,7 +136,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
         <div className="flex items-center space-x-4">
           <div className="text-right">
             <p className="text-sm opacity-90">@{profile?.username}</p>
-            <p className="text-xs text-green-200">Saldo: R$ {profile?.saldo_ficticio?.toFixed(2)}</p>
+            <p className="text-xs text-green-200">Saldo: C$ {profile?.saldo_ficticio?.toFixed(2)}</p>
           </div>
           <Button
             variant="ghost"
