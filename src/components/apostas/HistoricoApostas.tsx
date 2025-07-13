@@ -145,8 +145,10 @@ const HistoricoApostas: React.FC = () => {
                       </Badge>
                     </div>
                     <div className="text-gray-600">
-                      {selecao.categoria_aposta} - {selecao.detalhe_aposta}
-                      {selecao.players && ` (${selecao.players.jogador})`}
+                      {selecao.categoria_aposta === 'MERCADO_JOGADOR' && selecao.players 
+                        ? `${selecao.players.jogador} - ${selecao.detalhe_aposta.replace(`_${selecao.jogador_alvo_id}`, '')}`
+                        : `${selecao.categoria_aposta} - ${selecao.detalhe_aposta}`
+                      }
                     </div>
                   </div>
                 ))}

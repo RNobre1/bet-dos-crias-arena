@@ -2,8 +2,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { HelpCircle } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { calculatePlayerNote } from "@/utils/playerNotesCalculator";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -87,27 +87,50 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
   );
 
   return (
-    <TooltipProvider>
+    <div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             <div className="w-6 h-6 bg-green-600 rounded mr-2"></div>
             Classificação dos Jogadores
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-4 h-4 text-gray-500 hover:text-gray-700" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-md p-3">
-                <div className="text-sm">
-                  <p className="font-semibold mb-2">Como a Nota é Calculada:</p>
-                  <p className="mb-1">• <strong>Impacto Ofensivo:</strong> (Gols × 2.0 + Assistências × 1.0) / Jogos</p>
-                  <p className="mb-1">• <strong>Impacto Defensivo:</strong> (Defesas × 1.5 + Desarmes × 1.0) / Jogos</p>
-                  <p className="mb-1">• <strong>Penalidade:</strong> (Faltas × 0.25) / Jogos</p>
-                  <p className="mb-1">• <strong>PIB:</strong> Máximo(Imp. Ofensivo, Imp. Defensivo) - Penalidade</p>
-                  <p>• <strong>Nota Final:</strong> Normalizada na escala 5.0-9.8 baseada no desempenho do elenco</p>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Como a Nota é Calculada (V2.2)</DialogTitle>
+                </DialogHeader>
+                <div className="text-sm space-y-3">
+                  <div>
+                    <p className="font-semibold mb-2">Algoritmo: Nota Média de Performance</p>
+                    <p className="mb-2">Transforma estatísticas totais em uma nota que representa o desempenho médio por jogo.</p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold mb-1">Pontos de Ação:</p>
+                    <ul className="text-xs space-y-1">
+                      <li>• <strong>Gol:</strong> +3.0 pontos</li>
+                      <li>• <strong>Assistência:</strong> +2.0 pontos</li>
+                      <li>• <strong>Desarme:</strong> +0.5 pontos</li>
+                      <li>• <strong>Defesa:</strong> +0.8 pontos</li>
+                      <li>• <strong>Falta:</strong> -0.2 pontos</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold mb-1">Cálculo:</p>
+                    <ol className="text-xs space-y-1">
+                      <li>1. <strong>Pontuação Total:</strong> Soma de todos os pontos de ação</li>
+                      <li>2. <strong>Média por Jogo:</strong> Pontuação Total ÷ Jogos</li>
+                      <li>3. <strong>Nota Final:</strong> Mapeamento usando curva logística (escala 5.0-10.0)</li>
+                    </ol>
+                  </div>
                 </div>
-              </TooltipContent>
-            </Tooltip>
+              </DialogContent>
+            </Dialog>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -168,7 +191,7 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
           )}
         </CardContent>
       </Card>
-    </TooltipProvider>
+    </div>
   );
 };
 

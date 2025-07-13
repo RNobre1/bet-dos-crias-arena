@@ -5,24 +5,36 @@ import { Tables } from "@/integrations/supabase/types";
 export interface PlayerMarketOdds {
   id: string;
   gols: {
+    under_3_5: number | null;
+    under_2_5: number | null;
+    under_1_5: number | null;
+    under_0_5: number | null;
     over_0_5: number | null;
     over_1_5: number | null;
     over_2_5: number | null;
+    over_3_5: number | null;
   };
   assistencias: {
+    under_3_5: number | null;
+    under_2_5: number | null;
+    under_1_5: number | null;
+    under_0_5: number | null;
     over_0_5: number | null;
     over_1_5: number | null;
     over_2_5: number | null;
+    over_3_5: number | null;
   };
   desarmes: {
+    under_3_5: number | null;
+    under_2_5: number | null;
     over_1_5: number | null;
     over_2_5: number | null;
     over_3_5: number | null;
   };
   defesas: {
+    under_3_5: number | null;
     over_2_5: number | null;
     over_3_5: number | null;
-    over_4_5: number | null;
   };
 }
 
@@ -51,6 +63,25 @@ export const poissonPMF = (k: number, lambda: number): number => {
   const denominator = factorial(k);
   
   return numerator / denominator;
+};
+
+/**
+ * Calcula a probabilidade de ocorrer menos de N eventos (Under)
+ * P(X < N) = Σ(k=0 to N-1) P(X=k)
+ */
+export const poissonUnderProbability = (threshold: number, lambda: number): number => {
+  if (lambda === 0) {
+    return threshold > 0 ? 1 : 0;
+  }
+  
+  let cumulativeProbability = 0;
+  
+  // Somar probabilidades de 0 até threshold-1
+  for (let k = 0; k < threshold; k++) {
+    cumulativeProbability += poissonPMF(k, lambda);
+  }
+  
+  return Math.max(0, Math.min(1, cumulativeProbability));
 };
 
 /**
@@ -116,24 +147,36 @@ export const calculatePlayerMarketOdds = (player: Tables<"players">): PlayerMark
   return {
     id: player.id,
     gols: {
+      under_3_5: probabilityToOdds(poissonUnderProbability(4, lambdaGols)),
+      under_2_5: probabilityToOdds(poissonUnderProbability(3, lambdaGols)),
+      under_1_5: probabilityToOdds(poissonUnderProbability(2, lambdaGols)),
+      under_0_5: probabilityToOdds(poissonUnderProbability(1, lambdaGols)),
       over_0_5: probabilityToOdds(poissonOverProbability(1, lambdaGols)),
       over_1_5: probabilityToOdds(poissonOverProbability(2, lambdaGols)),
       over_2_5: probabilityToOdds(poissonOverProbability(3, lambdaGols)),
+      over_3_5: probabilityToOdds(poissonOverProbability(4, lambdaGols)),
     },
     assistencias: {
+      under_3_5: probabilityToOdds(poissonUnderProbability(4, lambdaAssistencias)),
+      under_2_5: probabilityToOdds(poissonUnderProbability(3, lambdaAssistencias)),
+      under_1_5: probabilityToOdds(poissonUnderProbability(2, lambdaAssistencias)),
+      under_0_5: probabilityToOdds(poissonUnderProbability(1, lambdaAssistencias)),
       over_0_5: probabilityToOdds(poissonOverProbability(1, lambdaAssistencias)),
       over_1_5: probabilityToOdds(poissonOverProbability(2, lambdaAssistencias)),
       over_2_5: probabilityToOdds(poissonOverProbability(3, lambdaAssistencias)),
+      over_3_5: probabilityToOdds(poissonOverProbability(4, lambdaAssistencias)),
     },
     desarmes: {
+      under_3_5: probabilityToOdds(poissonUnderProbability(4, lambdaDesarmes)),
+      under_2_5: probabilityToOdds(poissonUnderProbability(3, lambdaDesarmes)),
       over_1_5: probabilityToOdds(poissonOverProbability(2, lambdaDesarmes)),
       over_2_5: probabilityToOdds(poissonOverProbability(3, lambdaDesarmes)),
       over_3_5: probabilityToOdds(poissonOverProbability(4, lambdaDesarmes)),
     },
     defesas: {
+      under_3_5: probabilityToOdds(poissonUnderProbability(4, lambdaDefesas)),
       over_2_5: probabilityToOdds(poissonOverProbability(3, lambdaDefesas)),
       over_3_5: probabilityToOdds(poissonOverProbability(4, lambdaDefesas)),
-      over_4_5: probabilityToOdds(poissonOverProbability(5, lambdaDefesas)),
     },
   };
 };

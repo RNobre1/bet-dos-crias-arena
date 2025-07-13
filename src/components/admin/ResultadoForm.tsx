@@ -290,9 +290,19 @@ const ResultadoForm: React.FC = () => {
               if (stats.gols > limite) {
                 statusSelecao = 'GANHA';
               }
+            } else if (detalhe.startsWith('GOLS_MENOS_')) {
+              const limite = parseFloat(detalhe.replace('GOLS_MENOS_', ''));
+              if (stats.gols < limite) {
+                statusSelecao = 'GANHA';
+              }
             } else if (detalhe.startsWith('ASSIST_MAIS_')) {
               const limite = parseFloat(detalhe.replace('ASSIST_MAIS_', ''));
               if (stats.assistencias > limite) {
+                statusSelecao = 'GANHA';
+              }
+            } else if (detalhe.startsWith('ASSIST_MENOS_')) {
+              const limite = parseFloat(detalhe.replace('ASSIST_MENOS_', ''));
+              if (stats.assistencias < limite) {
                 statusSelecao = 'GANHA';
               }
             } else if (detalhe.startsWith('DESARMES_MAIS_')) {
@@ -300,9 +310,19 @@ const ResultadoForm: React.FC = () => {
               if (stats.desarmes > limite) {
                 statusSelecao = 'GANHA';
               }
+            } else if (detalhe.startsWith('DESARMES_MENOS_')) {
+              const limite = parseFloat(detalhe.replace('DESARMES_MENOS_', ''));
+              if (stats.desarmes < limite) {
+                statusSelecao = 'GANHA';
+              }
             } else if (detalhe.startsWith('DEFESAS_MAIS_')) {
               const limite = parseFloat(detalhe.replace('DEFESAS_MAIS_', ''));
               if (stats.defesas > limite) {
+                statusSelecao = 'GANHA';
+              }
+            } else if (detalhe.startsWith('DEFESAS_MENOS_')) {
+              const limite = parseFloat(detalhe.replace('DEFESAS_MENOS_', ''));
+              if (stats.defesas < limite) {
                 statusSelecao = 'GANHA';
               }
             }
