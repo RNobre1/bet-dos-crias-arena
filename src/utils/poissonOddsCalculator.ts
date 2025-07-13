@@ -120,7 +120,8 @@ export const probabilityToOdds = (probability: number): number | null => {
     return null; // Probabilidade inválida ou impossível
   }
   
-  const odds = 1 / probability;
+  let odds_raw = (1 / probability);
+  const odds = odds_raw > 100 ? 100 : odds_raw;
   
   // Se as odds forem muito altas (probabilidade muito baixa), considerar como infinito
   if (odds > 999) {
