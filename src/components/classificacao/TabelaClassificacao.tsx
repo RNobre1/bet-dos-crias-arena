@@ -18,7 +18,7 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
   // Calcular notas usando a fórmula correta
   const jogadoresComNota = jogadores.map(player => ({
     ...player,
-    notaCalculada: calculatePlayerNote(player, jogadores)
+    notaCalculada: calculatePlayerNote(player)
   })).sort((a, b) => b.notaCalculada - a.notaCalculada);
 
   const getStatusColor = (status: string | null) => {

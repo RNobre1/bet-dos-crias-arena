@@ -180,6 +180,20 @@ const ResultadoForm: React.FC = () => {
         console.log(`Jogador ${jogadorId} atualizado com sucesso`);
       }
 
+      // Recalcular todas as notas após atualizar as estatísticas
+      console.log('Recalculando notas dos jogadores...');
+      const { data: todosJogadores, error: fetchAllError } = await supabase
+        .from('players')
+        .select('*');
+
+      if (fetchAllError) {
+        console.error('Erro ao buscar todos os jogadores para recálculo:', fetchAllError);
+      } else if (todosJogadores) {
+        const { recalcularTodasAsNotas } = await import('@/utils/playerNotesCalculator');
+        await recalcularTodasAsNotas(todosJogadores);
+        console.log('Notas recalculadas com sucesso');
+      }
+
       // Atualizar partida como finalizada
       const { error: partidaError } = await supabase
         .from('partidas')

@@ -1,6 +1,6 @@
 
 import { Tables } from "@/integrations/supabase/types";
-import { calculatePositionScores } from "./playerNotesCalculator";
+import { calculatePositionScores, calculatePlayerNote } from "./playerNotesCalculator";
 
 interface TeamPlayer extends Tables<"players"> {
   positionScores: {

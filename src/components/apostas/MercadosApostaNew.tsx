@@ -181,51 +181,6 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     );
   }
 
-  const renderMercadosResultado = () => {
-    if (!partidaSelecionada) return null;
-
-    const oddsResultado = {
-      VITORIA_A: 2.1,
-      EMPATE: 3.2,
-      VITORIA_B: 2.8
-    };
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Resultado da Partida</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button
-              onClick={() => adicionarSelecao('RESULTADO_PARTIDA', 'VITORIA_A', oddsResultado.VITORIA_A)}
-              className="p-3 border rounded-lg hover:bg-gray-50 text-center"
-            >
-              <div className="font-medium">{partidaSelecionada.time_a_nome}</div>
-              <div className="text-green-600 font-bold">{oddsResultado.VITORIA_A}</div>
-            </button>
-
-            <button
-              onClick={() => adicionarSelecao('RESULTADO_PARTIDA', 'EMPATE', oddsResultado.EMPATE)}
-              className="p-3 border rounded-lg hover:bg-gray-50 text-center"
-            >
-              <div className="font-medium">Empate</div>
-              <div className="text-green-600 font-bold">{oddsResultado.EMPATE}</div>
-            </button>
-
-            <button
-              onClick={() => adicionarSelecao('RESULTADO_PARTIDA', 'VITORIA_B', oddsResultado.VITORIA_B)}
-              className="p-3 border rounded-lg hover:bg-gray-50 text-center"
-            >
-              <div className="font-medium">{partidaSelecionada.time_b_nome}</div>
-              <div className="text-green-600 font-bold">{oddsResultado.VITORIA_B}</div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   const renderMarketButton = (
     label: string,
     odd: number | null,
@@ -378,7 +333,6 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
 
           {partidaSelecionada && (
             <>
-              {renderMercadosResultado()}
               {renderMercadosJogador()}
             </>
           )}
