@@ -101,7 +101,7 @@ const AuthForm = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-green-700">BET DOS CRIAS</CardTitle>
+          <CardTitle className="text-2xl font-bold text-green-700">PRO VÁRZEA</CardTitle>
           <CardDescription>Entre na sua conta ou crie uma nova</CardDescription>
         </CardHeader>
         <CardContent>
