@@ -115,29 +115,33 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
         {/* Defensores */}
         {positions.defensores.length > 0 && (
           <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-          <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            {positions.defensores.map(player => renderPlayer(player, isTeamA))}
+            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+              {positions.defensores.map(player => renderPlayer(player, isTeamA))}
+            </div>
           </div>
         )}
         
         {/* Meio-campo */}
         {positions.meios.length > 0 && (
           <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-          <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            {positions.meios.map(player => renderPlayer(player, isTeamA))}
+            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+              {positions.meios.map(player => renderPlayer(player, isTeamA))}
+            </div>
           </div>
         )}
         
         {/* Atacantes */}
         {positions.atacantes.length > 0 && (
           <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-          <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            {positions.atacantes.map(player => renderPlayer(player, isTeamA))}
+            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+              {positions.atacantes.map(player => renderPlayer(player, isTeamA))}
+            </div>
           </div>
         )}
       </div>
     );
   };
+
   return (
     <div className="relative w-full max-w-4xl mx-auto">
       {/* Campo de futebol */}
