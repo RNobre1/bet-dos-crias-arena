@@ -179,36 +179,51 @@ export const generateCombinations = <T>(arr: T[], n: number): T[][] => {
  * Verifica se uma combinação de jogadores satisfaz as funções obrigatórias
  */
 export const satisfiesRequiredRoles = (players: TeamPlayerV3[], requiredRoles: RequiredRoles): boolean => {
-  const assignedRoles: { [playerId: string]: string } = {};
-  const roleCounts: { [key: string]: number } = {};
+  // Cria uma cópia dos jogadores para não modificar o array original
+  const availablePlayers = [...players];
+  const assignments: { [playerId: string]: string } = {};
   
-  // Primeiro, tenta atribuir funções especiais como Goleiro
-  if (requiredRoles['Goleiro'] && requiredRoles['Goleiro'] > 0) {
-    // Encontra os melhores candidatos a goleiro baseado na aptidão P_GOL
-    const goleirosCandidatos = [...players].sort((a, b) => b.aptitudeScores.P_GOL - a.aptitudeScores.P_GOL);
+  // Função auxiliar para mapear função para aptidão
+  const getRoleAptitude = (role: string): string => {
+    const mapping: { [key: string]: string } = {
+      'Goleiro': 'P_GOL',
+      'Zagueiro': 'P_ZAG',
+      'Lateral': 'P_LAT',
+      'Volante': 'P_VOL',
+      'Meia': 'P_MEI',
+      'Ponta': 'P_PTA',
+      'Atacante': 'P_ATK'
+    };
+    return mapping[role] || 'P_ATK';
+  };
+
+  // Abordagem greedy: atribuir jogadores às funções obrigatórias
+  // Priorizar goleiro primeiro, depois outras funções
+  const roleOrder = ['Goleiro', 'Zagueiro', 'Lateral', 'Volante', 'Meia', 'Ponta', 'Atacante'];
+  
+  for (const role of roleOrder) {
+    const required = requiredRoles[role] || 0;
+    if (required === 0) continue;
     
-    for (let i = 0; i < Math.min(requiredRoles['Goleiro'], goleirosCandidatos.length); i++) {
-      const goleiro = goleirosCandidatos[i];
-      assignedRoles[goleiro.id] = 'Goleiro';
-      roleCounts['Goleiro'] = (roleCounts['Goleiro'] || 0) + 1;
-    }
-  }
-  
-  // Para outras funções, usa a aptidão primária dos jogadores não atribuídos
-  players.forEach(player => {
-    if (!assignedRoles[player.id]) {
-      const role = mapAptitudeToRole(player.primaryAptitude);
-      roleCounts[role] = (roleCounts[role] || 0) + 1;
-    }
-  });
-  
-  // Verifica se todas as funções obrigatórias são satisfeitas
-  for (const [role, required] of Object.entries(requiredRoles)) {
-    if ((roleCounts[role] || 0) < required) {
+    const aptitudeKey = getRoleAptitude(role);
+    
+    // Encontrar os melhores candidatos disponíveis para esta função
+    const candidates = availablePlayers
+      .filter(p => !assignments[p.id]) // Apenas jogadores não atribuídos
+      .sort((a, b) => b.aptitudeScores[aptitudeKey] - a.aptitudeScores[aptitudeKey]);
+    
+    // Verificar se há candidatos suficientes
+    if (candidates.length < required) {
       return false;
     }
+    
+    // Atribuir os melhores candidatos a esta função
+    for (let i = 0; i < required; i++) {
+      assignments[candidates[i].id] = role;
+    }
   }
   
+  // Se chegou até aqui, todas as funções obrigatórias foram satisfeitas
   return true;
 };
 
