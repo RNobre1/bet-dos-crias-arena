@@ -68,12 +68,13 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
       }),
       meios: team.filter(p => {
         const role = p.assignedRole || p.primaryAptitude;
-        return role === 'Volante' || role === 'Meia' || role === 'Ponta' || 
-               role === 'P_VOL' || role === 'P_MEI' || role === 'P_PTA';
+        return role === 'Volante' || role === 'Meia' || 
+               role === 'P_VOL' || role === 'P_MEI';
       }),
       atacantes: team.filter(p => {
         const role = p.assignedRole || p.primaryAptitude;
-        return role === 'Atacante' || role === 'P_ATK';
+        return role === 'Atacante' ||  role === 'Ponta' || 
+               role === 'P_ATK' || role === 'P_PTA';
       })
     };
 
