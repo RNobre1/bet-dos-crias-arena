@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,24 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Slider } from "@/components/ui/slider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { 
-  generateBalancedTeamsV3, 
-  validateLineupInputs, 
-  AVAILABLE_ROLES, 
-  RequiredRoles, 
-  LineupResult,
-  TeamPlayerV3 
-} from "@/utils/teamFormationV3";
-import CampoFutebolV3 from "../escalacoes/CampoFutebolV3";
-import { Settings, Users, Shuffle, AlertCircle } from "lucide-react";
 import { 
   generateBalancedTeamsV3, 
   validateLineupInputs, 
@@ -106,7 +90,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
     }));
   };
 
-  const validateLineupInputs = () => {
+  const validateLineupInputsLocal = () => {
     const validation = validateLineupInputs(
       availablePlayers.length,
       numPlayersPerTeam,
@@ -119,124 +103,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
   };
 
   const generateLineup = async () => {
-    if (!validateLineupInputs()) {
-      toast.error('Corrija os erros antes de gerar a escalação');
-      return;
-    }
-
-    setIsGeneratingLineup(true);
-    try {
-      const result = generateBalancedTeamsV3(jogadores, numPlayersPerTeam, requiredRoles);
-      setGeneratedLineup(result);
-      toast.success('Escalação gerada com sucesso!');
-    } catch (error) {
-      console.error('Erro ao gerar escalação:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao gerar escalação');
-    } finally {
-      setIsGeneratingLineup(false);
-    }
-  };
-
-  const movePlayer = (playerId: string, fromTeam: 'A' | 'B', toTeam: 'A' | 'B') => {
-    if (!generatedLineup || fromTeam === toTeam) return;
-
-    setGeneratedLineup(prev => {
-      if (!prev) return prev;
-
-      const player = fromTeam === 'A' 
-        ? prev.timeA.jogadores.find(p => p.id === playerId)
-        : prev.timeB.jogadores.find(p => p.id === playerId);
-
-      if (!player) return prev;
-
-      const newTimeA = fromTeam === 'A' 
-        ? prev.timeA.jogadores.filter(p => p.id !== playerId)
-        : [...prev.timeA.jogadores, player];
-
-      const newTimeB = fromTeam === 'B'
-        ? prev.timeB.jogadores.filter(p => p.id !== playerId)
-        : [...prev.timeB.jogadores, player];
-
-      return {
-        ...prev,
-        timeA: { ...prev.timeA, jogadores: newTimeA },
-        timeB: { ...prev.timeB, jogadores: newTimeB }
-      };
-    });
-  };
-  const [jogadores, setJogadores] = useState<Tables<"players">[]>([]);
-
-  // Estados para escalação
-  const [numPlayersPerTeam, setNumPlayersPerTeam] = useState(5);
-  const [requiredRoles, setRequiredRoles] = useState<RequiredRoles>({ 'Goleiro': 1, 'Atacante': 1 });
-  const [generatedLineup, setGeneratedLineup] = useState<LineupResult | null>(null);
-  const [isGeneratingLineup, setIsGeneratingLineup] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-
-  useEffect(() => {
-    loadJogadores();
-  }, []);
-
-  const loadJogadores = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .neq('status', 'Lesionado')
-        .order('nota', { ascending: false });
-
-      if (error) throw error;
-      setJogadores(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar jogadores:', error);
-      toast.error('Erro ao carregar jogadores');
-    }
-  };
-
-  const availablePlayers = jogadores.filter(j => j.status !== 'Lesionado');
-  const maxPlayersPerTeam = Math.min(11, Math.floor(availablePlayers.length / 2));
-
-  const handleRoleChange = (role: string, value: string) => {
-    const numValue = parseInt(value) || 0;
-    setRequiredRoles(prev => ({
-      ...prev,
-      [role]: numValue
-    }));
-  };
-
-  const removeRole = (role: string) => {
-    if (role === 'Goleiro') return;
-    
-    setRequiredRoles(prev => {
-      const newRoles = { ...prev };
-      delete newRoles[role];
-      return newRoles;
-    });
-  };
-
-  const addRole = (role: string) => {
-    if (requiredRoles[role]) return;
-    
-    setRequiredRoles(prev => ({
-      ...prev,
-      [role]: 1
-    }));
-  };
-
-  const validateLineupInputs = () => {
-    const validation = validateLineupInputs(
-      availablePlayers.length,
-      numPlayersPerTeam,
-      requiredRoles,
-      true // É sempre duas escalações
-    );
-    
-    setValidationErrors(validation.errors);
-    return validation.isValid;
-  };
-
-  const generateLineup = async () => {
-    if (!validateLineupInputs()) {
+    if (!validateLineupInputsLocal()) {
       toast.error('Corrija os erros antes de gerar a escalação');
       return;
     }
@@ -293,11 +160,6 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
       return;
     }
 
-    if (!generatedLineup) {
-      toast.error('Gere uma escalação antes de criar a partida');
-      return;
-    }
-
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -306,8 +168,6 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
           time_a_nome: timeANome,
           time_b_nome: timeBNome,
           data_partida: new Date(dataPartida).toISOString(),
-          time_a_jogadores: generatedLineup.timeA.jogadores.map(j => j.id),
-          time_b_jogadores: generatedLineup.timeB.jogadores.map(j => j.id),
           time_a_jogadores: generatedLineup.timeA.jogadores.map(j => j.id),
           time_b_jogadores: generatedLineup.timeB.jogadores.map(j => j.id),
           status: 'AGENDADA'
@@ -331,123 +191,65 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
   const agora = new Date();
   const dataMinima = agora.toISOString().slice(0, 16);
 
-  // Definir data mínima como agora
-  const agora = new Date();
-  const dataMinima = agora.toISOString().slice(0, 16);
-
   return (
     <div className="space-y-6">
       <Card>
-      <CardHeader>
-        <CardTitle>Nova Partida</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="timeA">Nome do Time A</Label>
-          <Input
-            id="timeA"
-            type="text"
-            value={timeANome}
-            onChange={(e) => setTimeANome(e.target.value)}
-            placeholder="Ex: Time Azul"
-          />
-        </div>
-            value={timeANome}
-            onChange={(e) => setTimeANome(e.target.value)}
-            placeholder="Ex: Time Azul"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="timeB">Nome do Time B</Label>
-          <Input
-            id="timeB"
-            type="text"
-            value={timeBNome}
-            onChange={(e) => setTimeBNome(e.target.value)}
-            placeholder="Ex: Time Vermelho"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="data">Data e Hora da Partida</Label>
-          <Input
-            id="data"
-            type="datetime-local"
-            value={dataPartida}
-            onChange={(e) => setDataPartida(e.target.value)}
-            min={dataMinima}
-          />
-        </div>
-
-        <div className="flex gap-2 pt-4">
-          <Button 
-            onClick={criarPartida} 
-            disabled={loading || !generatedLineup}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            {loading ? 'Criando...' : 'Criar Partida'}
-          </Button>
-          
-          <Button 
-            onClick={onCancel}
-            variant="outline"
-            className="flex-1"
-          >
-            Cancelar
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-
-      {/* Gerador de Escalação */}
-      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Configurar Escalação da Partida
-          </CardTitle>
-        <div>
-          <Label htmlFor="timeB">Nome do Time B</Label>
-          <Input
-            id="timeB"
-            type="text"
-            value={timeBNome}
-            onChange={(e) => setTimeBNome(e.target.value)}
-            placeholder="Ex: Time Vermelho"
-          />
-        </div>
-                  min={4}
-        <div>
-          <Label htmlFor="data">Data e Hora da Partida</Label>
-          <Input
-            id="data"
-            type="datetime-local"
-            value={dataPartida}
-            onChange={(e) => setDataPartida(e.target.value)}
-            min={dataMinima}
-          />
-        </div>
-        <div className="flex gap-2 pt-4">
-        <div className="flex gap-2 pt-4">
-          <Button 
-            onClick={criarPartida} 
-            disabled={loading || !generatedLineup}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            {loading ? 'Criando...' : 'Criar Partida'}
-          </Button>
-          
-          <Button 
-            onClick={onCancel}
-            variant="outline"
-            className="flex-1"
-          >
-            Cancelar
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          <CardTitle>Nova Partida</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="timeA">Nome do Time A</Label>
+            <Input
+              id="timeA"
+              type="text"
+              value={timeANome}
+              onChange={(e) => setTimeANome(e.target.value)}
+              placeholder="Ex: Time Azul"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="timeB">Nome do Time B</Label>
+            <Input
+              id="timeB"
+              type="text"
+              value={timeBNome}
+              onChange={(e) => setTimeBNome(e.target.value)}
+              placeholder="Ex: Time Vermelho"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="data">Data e Hora da Partida</Label>
+            <Input
+              id="data"
+              type="datetime-local"
+              value={dataPartida}
+              onChange={(e) => setDataPartida(e.target.value)}
+              min={dataMinima}
+            />
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button 
+              onClick={criarPartida} 
+              disabled={loading || !generatedLineup}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              {loading ? 'Criando...' : 'Criar Partida'}
+            </Button>
+            
+            <Button 
+              onClick={onCancel}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Gerador de Escalação */}
       <Card>
@@ -653,7 +455,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
           )}
         </CardContent>
       </Card>
-    </Card>
+    </div>
   );
 };
 
