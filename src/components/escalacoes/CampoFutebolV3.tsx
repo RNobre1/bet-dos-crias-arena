@@ -61,10 +61,12 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
         const role = p.assignedRole || p.primaryAptitude;
         return role.includes('ZAG') || role.includes('LAT');
       }),
-      meios: team.filter(p => {
+      volantes: team.filter(p => (p.assignedRole || p.primaryAptitude).includes('Volante')),
+      meias_pontas: team.filter(p => {
         const role = p.assignedRole || p.primaryAptitude;
-        return role.includes('VOL') || role.includes('MEI') || role.includes('PTA');
+        return role.includes('Meia') || role.includes('Ponta');
       }),
+      // Unassigned players will default to atacantes if no specific role is found
       atacantes: team.filter(p => (p.assignedRole || p.primaryAptitude).includes('ATK'))
     };
 
@@ -72,8 +74,9 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
     const unassigned = team.filter(p => {
       const role = p.assignedRole || p.primaryAptitude;
       return !role.includes('GOL') && !role.includes('ZAG') && !role.includes('LAT') && 
-             !role.includes('VOL') && !role.includes('MEI') && !role.includes('PTA') && 
-             !role.includes('ATK');
+             !role.includes('Volante') && !role.includes('Meia') && !role.includes('Ponta') && 
+             !role.includes('Atacante') && !role.includes('P_GOL') && !role.includes('P_ZAG') && 
+             !role.includes('P_LAT') && !role.includes('P_VOL') && !role.includes('P_MEI') && !role.includes('P_PTA') && !role.includes('P_ATK');
     });
 
     // Adicionar jogadores não atribuídos aos atacantes por padrão
@@ -89,7 +92,8 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
     const activeLines = [
       positions.goleiro.length > 0,
       positions.defensores.length > 0,
-      positions.meios.length > 0,
+      positions.volantes.length > 0,
+      positions.meias_pontas.length > 0,
       positions.atacantes.length > 0
     ].filter(Boolean).length;
 
@@ -121,8 +125,15 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
           </div>
         )}
         
-        {/* Meio-campo */}
-        {positions.meios.length > 0 && (
+        {/* Volantes */}
+        {positions.volantes.length > 0 && (
+          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
+            {positions.volantes.map(player => renderPlayer(player, isTeamA))}
+          </div>
+        )}
+
+        {/* Meias e Pontas */}
+        {positions.meias_pontas.length > 0 && (
           <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
             <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
               {positions.meios.map(player => renderPlayer(player, isTeamA))}
@@ -153,7 +164,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
             linear-gradient(rgba(255,255,255,0.2) 50%, transparent 50%)
           `,
           backgroundSize: isMobile ? '15px 15px' : '20px 20px',
-          minHeight: isMobile ? '450px' : '650px' // Increased minHeight
+          minHeight: isMobile ? '500px' : '700px' // Increased minHeight for more space
         }}
       >
         {/* Linhas do campo */}
