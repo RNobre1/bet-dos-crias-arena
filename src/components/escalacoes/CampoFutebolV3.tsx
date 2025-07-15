@@ -54,7 +54,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
     return abbreviations[role] || 'JOG';
   };
 
-  const organizePlayersByPosition = (team: TeamPlayerV3[]) => {
+  const getOrganizedPlayers = (team: TeamPlayerV3[]) => {
     const positions = {
       goleiro: team.filter(p => (p.assignedRole || p.primaryAptitude).includes('GOL')),
       defensores: team.filter(p => {
@@ -68,79 +68,27 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
       atacantes: team.filter(p => (p.assignedRole || p.primaryAptitude).includes('ATK'))
     };
 
-    // Se não há jogadores em uma posição específica, distribuir os restantes
-    const unassigned = team.filter(p => {
-      const role = p.assignedRole || p.primaryAptitude;
-      return !role.includes('GOL') && !role.includes('ZAG') && !role.includes('LAT') && 
-             !role.includes('VOL') && !role.includes('MEI') && !role.includes('PTA') && 
-             !role.includes('ATK');
-    });
+    // Handle any players not explicitly assigned to a primary role (e.g., if a player's primary aptitude was not one of the defined roles)
+    const assignedPlayerIds = new Set([
+      ...positions.goleiro.map(p => p.id),
+      ...positions.defensores.map(p => p.id),
+      ...positions.meios.map(p => p.id),
+      ...positions.atacantes.map(p => p.id),
+    ]);
 
-    // Adicionar jogadores não atribuídos aos atacantes por padrão
-    positions.atacantes.push(...unassigned);
+    const unassigned = team.filter(p => !assignedPlayerIds.has(p.id));
 
+    // Distribute unassigned players to the 'meios' line as a fallback
+    positions.meios.push(...unassigned);
+
+    // Sort players within each group for consistent rendering
     return positions;
   };
 
-  const renderTeamFormation = (team: TeamPlayerV3[], isTeamA: boolean) => {
-    const positions = organizePlayersByPosition(team);
-    
-    // Determine vertical spacing based on number of lines with players
-    const activeLines = [
-      positions.goleiro.length > 0,
-      positions.defensores.length > 0,
-      positions.meios.length > 0,
-      positions.atacantes.length > 0
-    ].filter(Boolean).length;
+  const teamAOrganized = getOrganizedPlayers(timeA);
+  const teamBOrganized = getOrganizedPlayers(timeB);
 
-    // Adjust gap based on number of active lines
-    let verticalGapClass = 'justify-between'; // Default for 4 lines
-    if (activeLines === 3) {
-      verticalGapClass = 'justify-around'; // More space if fewer lines
-    } else if (activeLines < 3) {
-      verticalGapClass = 'justify-evenly'; // Even more space
-    }
-
-    return (
-      <div className={`flex flex-col items-center h-full py-2 ${verticalGapClass} ${
-        isTeamA ? '' : 'flex-col-reverse'
-      }`}>
-        {/* Goleiro */}
-        {positions.goleiro.length > 0 && (
-          <div className="flex justify-center w-full">
-            {positions.goleiro.map(player => renderPlayer(player, isTeamA))}
-          </div>
-        )}
-        
-        {/* Defensores */}
-        {positions.defensores.length > 0 && (
-          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-              {positions.defensores.map(player => renderPlayer(player, isTeamA))}
-            </div>
-          </div>
-        )}
-        
-        {/* Meio-campo */}
-        {positions.meios.length > 0 && (
-          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-              {positions.meios.map(player => renderPlayer(player, isTeamA))}
-            </div>
-          </div>
-        )}
-        
-        {/* Atacantes */}
-        {positions.atacantes.length > 0 && (
-          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-              {positions.atacantes.map(player => renderPlayer(player, isTeamA))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const fieldMinHeight = isMobile ? '600px' : '800px'; // Increased height for better spacing
 
   return (
     <div className="relative w-full max-w-4xl mx-auto">
@@ -153,7 +101,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
             linear-gradient(rgba(255,255,255,0.2) 50%, transparent 50%)
           `,
           backgroundSize: isMobile ? '15px 15px' : '20px 20px',
-          minHeight: isMobile ? '450px' : '650px' // Increased minHeight
+          minHeight: fieldMinHeight
         }}
       >
         {/* Linhas do campo */}
@@ -165,23 +113,52 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
           <div className={`absolute top-1/2 left-1/2 ${isMobile ? 'w-16 h-16' : 'w-24 h-24'} border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2`}></div>
           
           {/* Áreas do goleiro */}
-          {/* Adjusted positioning to be closer to the edge */}
-          <div className={`absolute top-2 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
-          <div className={`absolute bottom-2 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
+          <div className={`absolute top-0 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
+          <div className={`absolute bottom-0 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
         </div>
 
         {/* Time A (parte superior) */}
         {(showTeam === 'A' || showTeam === 'AMBOS') && (
-          <div className="absolute top-0 left-0 right-0 h-1/2">
-            {renderTeamFormation(timeA, true)}
-          </div>
+          <>
+            {/* Goleiro A */}
+            <div className="absolute top-[1%] left-0 right-0 flex justify-center items-center">
+              {teamAOrganized.goleiro.map(player => renderPlayer(player, true))}
+            </div>
+            {/* Defensores A (Zagueiros + Laterais) */}
+            <div className="absolute top-[18%] left-0 right-0 flex justify-center items-center gap-4">
+              {teamAOrganized.defensores.map(player => renderPlayer(player, true))}
+            </div>
+            {/* Meio-campo A (Volantes + Meias + Pontas) */}
+            <div className="absolute top-[35%] left-0 right-0 flex justify-center items-center gap-4">
+              {teamAOrganized.meios.map(player => renderPlayer(player, true))}
+            </div>
+            {/* Atacantes A */}
+            <div className="absolute top-[52%] left-0 right-0 flex justify-center items-center gap-4">
+              {teamAOrganized.atacantes.map(player => renderPlayer(player, true))}
+            </div>
+          </>
         )}
 
         {/* Time B (parte inferior) */}
         {(showTeam === 'B' || showTeam === 'AMBOS') && (
-          <div className="absolute bottom-0 left-0 right-0 h-1/2">
-            {renderTeamFormation(timeB, false)}
-          </div>
+          <>
+            {/* Goleiro B */}
+            <div className="absolute bottom-[1%] left-0 right-0 flex justify-center items-center">
+              {teamBOrganized.goleiro.map(player => renderPlayer(player, false))}
+            </div>
+            {/* Defensores B (Zagueiros + Laterais) */}
+            <div className="absolute bottom-[18%] left-0 right-0 flex justify-center items-center gap-4">
+              {teamBOrganized.defensores.map(player => renderPlayer(player, false))}
+            </div>
+            {/* Meio-campo B (Volantes + Meias + Pontas) */}
+            <div className="absolute bottom-[35%] left-0 right-0 flex justify-center items-center gap-4">
+              {teamBOrganized.meios.map(player => renderPlayer(player, false))}
+            </div>
+            {/* Atacantes B */}
+            <div className="absolute bottom-[52%] left-0 right-0 flex justify-center items-center gap-4">
+              {teamBOrganized.atacantes.map(player => renderPlayer(player, false))}
+            </div>
+          </>
         )}
       </div>
 
