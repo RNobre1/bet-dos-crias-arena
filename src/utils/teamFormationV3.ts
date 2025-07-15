@@ -179,8 +179,6 @@ export const generateCombinations = <T>(arr: T[], n: number): T[][] => {
  * Verifica se uma combinação de jogadores satisfaz as funções obrigatórias
  */
 export const satisfiesRequiredRoles = (players: TeamPlayerV3[], requiredRoles: RequiredRoles): [boolean, { [playerId: string]: string } | null] => {
-  // Cria uma cópia dos jogadores para não modificar o array original
-  const availablePlayers = [...players];
   const assignments: { [playerId: string]: string } = {};
   
   // Função auxiliar para mapear função para aptidão
@@ -204,24 +202,25 @@ export const satisfiesRequiredRoles = (players: TeamPlayerV3[], requiredRoles: R
   for (const role of roleOrder) {
     const required = requiredRoles[role] || 0;
     if (required > 0) {
-      // Ordenar jogadores por aptidão para esta função
-      const sortedPlayers = availablePlayers.sort((a, b) => {
+      // Obter jogadores não atribuídos e ordená-los por aptidão para esta função
+      const unassignedPlayers = players.filter(player => !assignments[player.id]);
+      const sortedPlayers = [...unassignedPlayers].sort((a, b) => {
         const aptitudeA = a.aptitudeScores[getRoleAptitude(role)];
         const aptitudeB = b.aptitudeScores[getRoleAptitude(role)];
         return aptitudeB - aptitudeA;
       });
       
+      // Verificar se há jogadores suficientes disponíveis
+      if (sortedPlayers.length < required) {
+        return [false, null];
+      }
+      
       // Tentar atribuir os N melhores jogadores para esta função
       let assigned = 0;
       for (let i = 0; i < sortedPlayers.length && assigned < required; i++) {
         const player = sortedPlayers[i];
-        if (!assignments[player.id]) {
-          assignments[player.id] = role;
-          assigned++;
-          // Remover jogador da lista de disponíveis
-          const index = availablePlayers.findIndex(p => p.id === player.id);
-          if (index > -1) availablePlayers.splice(index, 1);
-        }
+        assignments[player.id] = role;
+        assigned++;
       }
       
       if (assigned < required) {
