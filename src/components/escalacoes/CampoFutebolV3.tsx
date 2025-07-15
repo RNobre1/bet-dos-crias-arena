@@ -17,7 +17,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
       key={player.id}
       className={`flex flex-col items-center p-2 rounded-lg ${
         isTeamA ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
-      } shadow-lg ${isMobile ? 'min-w-[60px] max-w-[70px]' : 'min-w-[80px] max-w-[100px]'}`}
+      } shadow-lg ${isMobile ? 'min-w-[55px] max-w-[65px]' : 'min-w-[75px] max-w-[90px]'}`}
     >
       <div className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold`}>
         {player.scoreNota.toFixed(1)}
@@ -28,9 +28,11 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
       <Badge variant="secondary" className={`${isMobile ? 'text-xs' : 'text-xs'} mt-1`}>
         {getRoleAbbreviation(player.assignedRole || player.primaryAptitude)}
       </Badge>
-      <div className={`${isMobile ? 'text-xs' : 'text-xs'} mt-1 opacity-75`}>
-        A:{player.scoreAtaque.toFixed(1)} D:{player.scoreDefesa.toFixed(1)}
-      </div>
+      {!isMobile && (
+        <div className="text-xs mt-1 opacity-75">
+          A:{player.scoreAtaque.toFixed(1)} D:{player.scoreDefesa.toFixed(1)}
+        </div>
+      )}
     </div>
   );
 
@@ -56,28 +58,46 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
 
   const organizePlayersByPosition = (team: TeamPlayerV3[]) => {
     const positions = {
-      goleiro: team.filter(p => (p.assignedRole || p.primaryAptitude).includes('GOL')),
+      goleiro: team.filter(p => {
+        const role = p.assignedRole || p.primaryAptitude;
+        return role === 'Goleiro' || role === 'P_GOL';
+      }),
       defensores: team.filter(p => {
         const role = p.assignedRole || p.primaryAptitude;
-        return role.includes('ZAG') || role.includes('LAT');
+        return role === 'Zagueiro' || role === 'Lateral' || role === 'P_ZAG' || role === 'P_LAT';
       }),
       meios: team.filter(p => {
         const role = p.assignedRole || p.primaryAptitude;
-        return role.includes('VOL') || role.includes('MEI') || role.includes('PTA');
+        return role === 'Volante' || role === 'Meia' || role === 'Ponta' || 
+               role === 'P_VOL' || role === 'P_MEI' || role === 'P_PTA';
       }),
-      atacantes: team.filter(p => (p.assignedRole || p.primaryAptitude).includes('ATK'))
+      atacantes: team.filter(p => {
+        const role = p.assignedRole || p.primaryAptitude;
+        return role === 'Atacante' || role === 'P_ATK';
+      })
     };
 
-    // Se não há jogadores em uma posição específica, distribuir os restantes
-    const unassigned = team.filter(p => {
-      const role = p.assignedRole || p.primaryAptitude;
-      return !role.includes('GOL') && !role.includes('ZAG') && !role.includes('LAT') && 
-             !role.includes('VOL') && !role.includes('MEI') && !role.includes('PTA') && 
-             !role.includes('ATK');
-    });
+    // Verificar se há jogadores não categorizados e distribuí-los
+    const categorizedIds = new Set([
+      ...positions.goleiro.map(p => p.id),
+      ...positions.defensores.map(p => p.id),
+      ...positions.meios.map(p => p.id),
+      ...positions.atacantes.map(p => p.id)
+    ]);
 
-    // Adicionar jogadores não atribuídos aos atacantes por padrão
-    positions.atacantes.push(...unassigned);
+    const uncategorized = team.filter(p => !categorizedIds.has(p.id));
+    
+    // Distribuir jogadores não categorizados baseado em suas aptidões
+    uncategorized.forEach(player => {
+      const role = player.assignedRole || player.primaryAptitude;
+      
+      // Se ainda assim não conseguir categorizar, usar como meio-campo por padrão
+      if (player.scoreAtaque > player.scoreDefesa) {
+        positions.atacantes.push(player);
+      } else {
+        positions.meios.push(player);
+      }
+    });
 
     return positions;
   };
@@ -85,7 +105,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
   const renderTeamFormation = (team: TeamPlayerV3[], isTeamA: boolean) => {
     const positions = organizePlayersByPosition(team);
     
-    // Determine vertical spacing based on number of lines with players
+    // Determinar quantas linhas têm jogadores
     const activeLines = [
       positions.goleiro.length > 0,
       positions.defensores.length > 0,
@@ -93,47 +113,51 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
       positions.atacantes.length > 0
     ].filter(Boolean).length;
 
-    // Adjust gap based on number of active lines
-    let verticalGapClass = 'justify-between'; // Default for 4 lines
-    if (activeLines === 3) {
-      verticalGapClass = 'justify-around'; // More space if fewer lines
-    } else if (activeLines < 3) {
-      verticalGapClass = 'justify-evenly'; // Even more space
-    }
+    // Ajustar espaçamento baseado no número de linhas ativas
+    const getVerticalSpacing = () => {
+      if (activeLines <= 2) return 'justify-around';
+      if (activeLines === 3) return 'justify-between';
+      return 'justify-between'; // Para 4 linhas
+    };
+
+    const verticalSpacing = getVerticalSpacing();
 
     return (
-      <div className={`flex flex-col items-center h-full py-2 ${verticalGapClass} ${
-        isTeamA ? '' : 'flex-col-reverse'
-      }`}>
-        {/* Goleiro */}
+      <div className={`flex flex-col items-center h-full ${verticalSpacing} ${
+        isMobile ? 'py-1' : 'py-2'
+      } ${isTeamA ? '' : 'flex-col-reverse'}`}>
+        
+        {/* Goleiro - sempre na extremidade */}
         {positions.goleiro.length > 0 && (
-          <div className="flex justify-center w-full">
-            {positions.goleiro.map(player => renderPlayer(player, isTeamA))}
+          <div className={`flex justify-center w-full ${isMobile ? 'mb-1' : 'mb-2'}`}>
+            <div className={`flex justify-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
+              {positions.goleiro.map(player => renderPlayer(player, isTeamA))}
+            </div>
           </div>
         )}
         
-        {/* Defensores */}
+        {/* Defensores - segunda linha */}
         {positions.defensores.length > 0 && (
-          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+          <div className={`flex justify-center w-full ${isMobile ? 'mb-1' : 'mb-2'}`}>
+            <div className={`flex justify-center flex-wrap ${isMobile ? 'gap-1' : 'gap-2'}`}>
               {positions.defensores.map(player => renderPlayer(player, isTeamA))}
             </div>
           </div>
         )}
         
-        {/* Meio-campo */}
+        {/* Meio-campo - terceira linha */}
         {positions.meios.length > 0 && (
-          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+          <div className={`flex justify-center w-full ${isMobile ? 'mb-1' : 'mb-2'}`}>
+            <div className={`flex justify-center flex-wrap ${isMobile ? 'gap-1' : 'gap-2'}`}>
               {positions.meios.map(player => renderPlayer(player, isTeamA))}
             </div>
           </div>
         )}
         
-        {/* Atacantes */}
+        {/* Atacantes - quarta linha */}
         {positions.atacantes.length > 0 && (
-          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
-            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+          <div className="flex justify-center w-full">
+            <div className={`flex justify-center flex-wrap ${isMobile ? 'gap-1' : 'gap-2'}`}>
               {positions.atacantes.map(player => renderPlayer(player, isTeamA))}
             </div>
           </div>
@@ -143,17 +167,17 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto">
+    <div className="relative w-full max-w-5xl mx-auto">
       {/* Campo de futebol */}
       <div 
-        className="relative bg-green-500 rounded-lg shadow-xl"
+        className="relative bg-green-500 rounded-lg shadow-xl overflow-hidden"
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(255,255,255,0.2) 50%, transparent 50%),
             linear-gradient(rgba(255,255,255,0.2) 50%, transparent 50%)
           `,
           backgroundSize: isMobile ? '15px 15px' : '20px 20px',
-          minHeight: isMobile ? '450px' : '650px' // Increased minHeight
+          minHeight: isMobile ? '500px' : '700px' // Aumentado para melhor espaçamento
         }}
       >
         {/* Linhas do campo */}
@@ -164,10 +188,13 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
           {/* Círculo central */}
           <div className={`absolute top-1/2 left-1/2 ${isMobile ? 'w-16 h-16' : 'w-24 h-24'} border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2`}></div>
           
-          {/* Áreas do goleiro */}
-          {/* Adjusted positioning to be closer to the edge */}
-          <div className={`absolute top-2 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
-          <div className={`absolute bottom-2 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
+          {/* Áreas do goleiro - mais próximas das extremidades */}
+          <div className={`absolute top-1 left-1/2 ${isMobile ? 'w-20 h-10' : 'w-28 h-14'} border-2 border-white transform -translate-x-1/2`}></div>
+          <div className={`absolute bottom-1 left-1/2 ${isMobile ? 'w-20 h-10' : 'w-28 h-14'} border-2 border-white transform -translate-x-1/2`}></div>
+          
+          {/* Grandes áreas */}
+          <div className={`absolute top-1 left-1/2 ${isMobile ? 'w-32 h-16' : 'w-40 h-20'} border-2 border-white transform -translate-x-1/2 opacity-60`}></div>
+          <div className={`absolute bottom-1 left-1/2 ${isMobile ? 'w-32 h-16' : 'w-40 h-20'} border-2 border-white transform -translate-x-1/2 opacity-60`}></div>
         </div>
 
         {/* Time A (parte superior) */}
@@ -200,6 +227,13 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
           </div>
         )}
       </div>
+
+      {/* Informações adicionais para mobile */}
+      {isMobile && (
+        <div className="mt-4 text-xs text-gray-600 text-center">
+          <p>Nota • Ataque/Defesa • Função</p>
+        </div>
+      )}
     </div>
   );
 };
