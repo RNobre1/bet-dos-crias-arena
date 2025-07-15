@@ -179,13 +179,30 @@ export const generateCombinations = <T>(arr: T[], n: number): T[][] => {
  * Verifica se uma combinação de jogadores satisfaz as funções obrigatórias
  */
 export const satisfiesRequiredRoles = (players: TeamPlayerV3[], requiredRoles: RequiredRoles): boolean => {
+  const assignedRoles: { [playerId: string]: string } = {};
   const roleCounts: { [key: string]: number } = {};
   
+  // Primeiro, tenta atribuir funções especiais como Goleiro
+  if (requiredRoles['Goleiro'] && requiredRoles['Goleiro'] > 0) {
+    // Encontra os melhores candidatos a goleiro baseado na aptidão P_GOL
+    const goleirosCandidatos = [...players].sort((a, b) => b.aptitudeScores.P_GOL - a.aptitudeScores.P_GOL);
+    
+    for (let i = 0; i < Math.min(requiredRoles['Goleiro'], goleirosCandidatos.length); i++) {
+      const goleiro = goleirosCandidatos[i];
+      assignedRoles[goleiro.id] = 'Goleiro';
+      roleCounts['Goleiro'] = (roleCounts['Goleiro'] || 0) + 1;
+    }
+  }
+  
+  // Para outras funções, usa a aptidão primária dos jogadores não atribuídos
   players.forEach(player => {
-    const role = mapAptitudeToRole(player.primaryAptitude);
-    roleCounts[role] = (roleCounts[role] || 0) + 1;
+    if (!assignedRoles[player.id]) {
+      const role = mapAptitudeToRole(player.primaryAptitude);
+      roleCounts[role] = (roleCounts[role] || 0) + 1;
+    }
   });
   
+  // Verifica se todas as funções obrigatórias são satisfeitas
   for (const [role, required] of Object.entries(requiredRoles)) {
     if ((roleCounts[role] || 0) < required) {
       return false;
