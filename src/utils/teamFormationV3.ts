@@ -59,7 +59,7 @@ export const calculateAptitudeScores = (player: Tables<"players">) => {
   const jogos = player.jogos || 1;
   
   const aptitudeScores = {
-    P_GOL: (player.defesas * 2.0 - player.faltas * 0.25) / jogos,
+    P_GOL: (player.defesas * 2.5 + player.desarmes * 0.5 - player.gols * 1.5 - player.assistencias * 1.0 - player.faltas * 0.25) / jogos,
     P_ZAG: (player.desarmes * 2.0 + player.defesas * 1.0 - player.faltas * 0.25) / jogos,
     P_LAT: (player.assistencias * 1.5 + player.desarmes * 1.5 + player.gols * 0.5 - player.faltas * 0.25) / jogos,
     P_VOL: (player.desarmes * 2.5 + player.assistencias * 1.0 - player.faltas * 0.25) / jogos,
