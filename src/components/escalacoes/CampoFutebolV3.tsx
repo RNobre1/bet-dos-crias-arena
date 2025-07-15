@@ -84,18 +84,37 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
 
   const renderTeamFormation = (team: TeamPlayerV3[], isTeamA: boolean) => {
     const positions = organizePlayersByPosition(team);
+    
+    // Determine vertical spacing based on number of lines with players
+    const activeLines = [
+      positions.goleiro.length > 0,
+      positions.defensores.length > 0,
+      positions.meios.length > 0,
+      positions.atacantes.length > 0
+    ].filter(Boolean).length;
+
+    // Adjust gap based on number of active lines
+    let verticalGapClass = 'justify-between'; // Default for 4 lines
+    if (activeLines === 3) {
+      verticalGapClass = 'justify-around'; // More space if fewer lines
+    } else if (activeLines < 3) {
+      verticalGapClass = 'justify-evenly'; // Even more space
+    }
 
     return (
-      <div className={`flex flex-col items-center h-full justify-between py-2 ${
+      <div className={`flex flex-col items-center h-full py-2 ${verticalGapClass} ${
         isTeamA ? '' : 'flex-col-reverse'
       }`}>
         {/* Goleiro */}
-        <div className="flex justify-center">
-          {positions.goleiro.map(player => renderPlayer(player, isTeamA))}
-        </div>
+        {positions.goleiro.length > 0 && (
+          <div className="flex justify-center w-full">
+            {positions.goleiro.map(player => renderPlayer(player, isTeamA))}
+          </div>
+        )}
         
         {/* Defensores */}
         {positions.defensores.length > 0 && (
+          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
           <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
             {positions.defensores.map(player => renderPlayer(player, isTeamA))}
           </div>
@@ -103,6 +122,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
         
         {/* Meio-campo */}
         {positions.meios.length > 0 && (
+          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
           <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
             {positions.meios.map(player => renderPlayer(player, isTeamA))}
           </div>
@@ -110,6 +130,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
         
         {/* Atacantes */}
         {positions.atacantes.length > 0 && (
+          <div className={`flex justify-center w-full ${isMobile ? 'gap-2' : 'gap-4'}`}>
           <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
             {positions.atacantes.map(player => renderPlayer(player, isTeamA))}
           </div>
@@ -117,7 +138,6 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
       </div>
     );
   };
-
   return (
     <div className="relative w-full max-w-4xl mx-auto">
       {/* Campo de futebol */}
@@ -129,7 +149,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
             linear-gradient(rgba(255,255,255,0.2) 50%, transparent 50%)
           `,
           backgroundSize: isMobile ? '15px 15px' : '20px 20px',
-          minHeight: isMobile ? '400px' : '600px'
+          minHeight: isMobile ? '450px' : '650px' // Increased minHeight
         }}
       >
         {/* Linhas do campo */}
@@ -141,8 +161,9 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
           <div className={`absolute top-1/2 left-1/2 ${isMobile ? 'w-16 h-16' : 'w-24 h-24'} border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2`}></div>
           
           {/* Áreas do goleiro */}
-          <div className={`absolute top-4 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
-          <div className={`absolute bottom-4 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
+          {/* Adjusted positioning to be closer to the edge */}
+          <div className={`absolute top-2 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
+          <div className={`absolute bottom-2 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
         </div>
 
         {/* Time A (parte superior) */}
