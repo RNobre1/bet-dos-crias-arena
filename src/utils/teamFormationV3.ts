@@ -200,36 +200,37 @@ export const satisfiesRequiredRoles = (players: TeamPlayerV3[], requiredRoles: R
   // Abordagem greedy: atribuir jogadores às funções obrigatórias
   // Priorizar goleiro primeiro, depois outras funções
   const roleOrder = ['Goleiro', 'Zagueiro', 'Lateral', 'Volante', 'Meia', 'Ponta', 'Atacante'];
+  
+  for (const role of roleOrder) {
+    const required = requiredRoles[role] || 0;
+    if (required > 0) {
+      // Ordenar jogadores por aptidão para esta função
+      const sortedPlayers = availablePlayers.sort((a, b) => {
+        const aptitudeA = a.aptitudeScores[getRoleAptitude(role)];
+        const aptitudeB = b.aptitudeScores[getRoleAptitude(role)];
+        return aptitudeB - aptitudeA;
+      });
+      
+      // Tentar atribuir os N melhores jogadores para esta função
+      let assigned = 0;
+      for (let i = 0; i < sortedPlayers.length && assigned < required; i++) {
+        const player = sortedPlayers[i];
+        if (!assignments[player.id]) {
+          assignments[player.id] = role;
+          assigned++;
+          // Remover jogador da lista de disponíveis
+          const index = availablePlayers.findIndex(p => p.id === player.id);
+          if (index > -1) availablePlayers.splice(index, 1);
+        }
+      }
+      
+      if (assigned < required) {
+        return [false, null];
+      }
     }
   }
 
   return [true, assignments];
-};
-
-/**
- * Gera todas as combinações possíveis de n elementos de um array
- */
-export const generateCombinations = <T>(arr: T[], n: number): T[][] => {
-  if (n === 0) return [[]];
-  if (n > arr.length) return [];
-  
-  const result: T[][] = [];
-  
-  function backtrack(start: number, current: T[]) {
-    if (current.length === n) {
-      result.push([...current]);
-      return;
-    }
-    
-    for (let i = start; i < arr.length; i++) {
-      current.push(arr[i]);
-      backtrack(i + 1, current);
-      current.pop();
-    }
-  }
-  
-  backtrack(0, []);
-  return result;
 };
 
 /**
@@ -318,15 +319,6 @@ export const generateBalancedTeamsV3 = (
     !bestCombination!.teamA.some(ta => ta.id === p.id) &&
     !bestCombination!.teamB.some(tb => tb.id === p.id)
   );
-  
-  // Atribuir funções baseadas na aptidão primária
-  // Roles are already assigned in generateValidTeams
-  // bestCombination.teamA.forEach(player => {
-  //   player.assignedRole = mapAptitudeToRole(player.primaryAptitude);
-  // });
-  // bestCombination.teamB.forEach(player => {
-  //   player.assignedRole = mapAptitudeToRole(player.primaryAptitude);
-  // });
   
   const timeA: TeamV3 = {
     nome: "Time A",
