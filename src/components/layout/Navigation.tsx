@@ -73,8 +73,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
                   key={item.id}
                   onClick={() => onPageChange(item.id)}
                   variant="ghost"
-                  size="sm"
-                  className={`flex flex-col items-center gap-1 h-auto py-2 px-3 ${
+                  className={`flex flex-col items-center gap-1 h-12 min-h-[44px] py-2 px-3 ${
                     isActive 
                       ? 'bg-green-700 text-white hover:bg-green-600' 
                       : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
