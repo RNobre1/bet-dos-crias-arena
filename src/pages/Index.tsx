@@ -105,7 +105,6 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
-      <main className={`${isMobile ? 'pb-20 px-0' : 'container mx-auto p-6'}`}>
       <main className={`${isMobile ? 'pt-16 pb-20 px-0' : 'container mx-auto p-6'}`}>
         {renderPage()}
       </main>
@@ -114,8 +113,6 @@ const AppContent = () => {
 };
 
 const Index = () => {
-    }
-  )
   return (
     <AuthProvider>
       <AppContent />
