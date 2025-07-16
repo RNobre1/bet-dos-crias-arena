@@ -114,6 +114,8 @@ const AppContent = () => {
 };
 
 const Index = () => {
+    }
+  )
   return (
     <AuthProvider>
       <AppContent />
