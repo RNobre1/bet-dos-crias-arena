@@ -61,9 +61,13 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
                 return (
                   <Button
                     key={item.id}
-                    variant={currentPage === item.id ? "secondary" : "ghost"}
+                    variant="ghost"
                     onClick={() => handleMenuClick(item.id)}
-                    className="justify-start text-white hover:bg-green-700 mb-1 py-3"
+                    className={`flex flex-col items-center text-xs p-2 text-white hover:bg-green-700 transition-colors ${
+                      currentPage === item.id ? 'bg-green-700' : ''
+                    className={`text-white hover:bg-green-700 transition-colors ${
+                      currentPage === item.id ? 'bg-green-700' : ''
+                    }`}
                   >
                     <Icon className="w-4 h-4 mr-3" />
                     {item.label}

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Info, Settings, Calendar } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
@@ -116,25 +116,67 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
   const isOfficialMatch = !!nextMatch && !!officialLineup;
 
   return (
-    <TooltipProvider>
+    <div>
       <div className={`space-y-6 ${isMobile ? 'pb-20' : ''}`}>
         <div className="text-center px-4">
           <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2 flex items-center justify-center gap-2`}>
             Escalações da Próxima Partida
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-4 h-4 text-gray-500 hover:text-gray-700" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-md p-3">
-                <div className="text-sm">
-                  <p className="font-semibold mb-2">Algoritmo de Escalação Inteligente v3.0:</p>
-                  <p className="mb-1">• <strong>Análise de Perfis:</strong> Calcula scores universais (Nota, Ataque, Defesa) e aptidões por função</p>
-                  <p className="mb-1">• <strong>Otimização Combinatória:</strong> Gera todas as combinações válidas e seleciona a mais equilibrada</p>
-                  <p className="mb-1">• <strong>Custo de Desequilíbrio:</strong> Minimiza diferenças entre times em múltiplas dimensões</p>
-                  <p>• <strong>Flexibilidade:</strong> Respeita funções obrigatórias definidas pelo usuário</p>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                  <Info className="w-4 h-4" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Algoritmo de Escalação Inteligente v3.0</DialogTitle>
+                </DialogHeader>
+                <div className="text-sm space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">🎯 Análise de Perfis de Jogador</h4>
+                    <p className="mb-2">O sistema calcula três scores universais para cada jogador:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4">
+                      <li><strong>Score Nota:</strong> Performance geral baseada no algoritmo v2.2</li>
+                      <li><strong>Score Ataque:</strong> Capacidade ofensiva (gols + assistências)</li>
+                      <li><strong>Score Defesa:</strong> Capacidade defensiva (desarmes + defesas)</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">⚽ Aptidões por Função</h4>
+                    <p className="mb-2">Calcula a adequação de cada jogador para 7 funções táticas:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4">
+                      <li><strong>Goleiro (P_GOL):</strong> Prioriza defesas, penaliza contribuições ofensivas</li>
+                      <li><strong>Zagueiro/Lateral:</strong> Equilibra defesa com apoio ofensivo</li>
+                      <li><strong>Volante/Meia:</strong> Balanceia criação e marcação</li>
+                      <li><strong>Ponta/Atacante:</strong> Foca em finalização e assistências</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">🔄 Otimização Combinatória</h4>
+                    <p className="mb-2">O algoritmo:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4">
+                      <li>Gera todas as combinações válidas de times</li>
+                      <li>Respeita funções obrigatórias (ex: 1 goleiro por time)</li>
+                      <li>Calcula o "Custo de Desequilíbrio" para cada combinação</li>
+                      <li>Seleciona a combinação mais equilibrada</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">⚖️ Custo de Desequilíbrio</h4>
+                    <p className="mb-2">Minimiza diferenças entre times em múltiplas dimensões:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4">
+                      <li>Diferença de notas totais (peso 1.5)</li>
+                      <li>Diferença de capacidade ofensiva (peso 1.0)</li>
+                      <li>Diferença de capacidade defensiva (peso 1.0)</li>
+                    </ul>
+                    <p className="mt-2 text-gray-600 italic">Quanto menor o custo, mais equilibrados são os times.</p>
+                  </div>
                 </div>
-              </TooltipContent>
-            </Tooltip>
+              </DialogContent>
+            </Dialog>
           </h2>
           <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
             {isOfficialMatch 
@@ -360,7 +402,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
           </Card>
         )}
       </div>
-    </TooltipProvider>
+    </div>
   );
 };
 
