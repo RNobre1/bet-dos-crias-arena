@@ -149,7 +149,7 @@ const PlayerSelection = () => {
                       <Button 
                         onClick={() => handleSelectPlayer(jogador.id)}
                         disabled={selecting}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 h-10 min-h-[44px] px-4"
                       >
                         {selecting ? 'Selecionando...' : 'Escolher'}
                       </Button>

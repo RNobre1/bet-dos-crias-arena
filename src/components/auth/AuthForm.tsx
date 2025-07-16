@@ -121,6 +121,7 @@ const AuthForm = () => {
                     value={loginData.username}
                     onChange={(e) => setLoginData({...loginData, username: e.target.value})}
                     required
+                    className="h-12 min-h-[44px]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -131,9 +132,10 @@ const AuthForm = () => {
                     value={loginData.password}
                     onChange={(e) => setLoginData({...loginData, password: e.target.value})}
                     required
+                    className="h-12 min-h-[44px]"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full h-12 min-h-[44px]" disabled={isLoading}>
                   {isLoading ? 'Entrando...' : 'Entrar'}
                 </Button>
               </form>
@@ -149,6 +151,8 @@ const AuthForm = () => {
                     value={signupData.username}
                     onChange={(e) => setSignupData({...signupData, username: e.target.value})}
                     required
+                    className="h-12 min-h-[44px]"
+                    className="h-12 min-h-[44px]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -159,6 +163,8 @@ const AuthForm = () => {
                     value={signupData.email}
                     onChange={(e) => setSignupData({...signupData, email: e.target.value})}
                     required
+                    className="h-12 min-h-[44px]"
+                    className="h-12 min-h-[44px]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -169,6 +175,8 @@ const AuthForm = () => {
                     value={signupData.password}
                     onChange={(e) => setSignupData({...signupData, password: e.target.value})}
                     required
+                    className="h-12 min-h-[44px]"
+                    className="h-12 min-h-[44px]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -179,9 +187,11 @@ const AuthForm = () => {
                     value={signupData.confirmPassword}
                     onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
                     required
+                    className="h-12 min-h-[44px]"
+                    className="h-12 min-h-[44px]"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full h-12 min-h-[44px]" disabled={isLoading}>
                   {isLoading ? 'Criando...' : 'Criar Conta'}
                 </Button>
               </form>

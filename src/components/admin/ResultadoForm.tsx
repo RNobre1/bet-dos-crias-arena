@@ -677,7 +677,7 @@ const ResultadoForm: React.FC = () => {
             <Label htmlFor="partida">Selecionar Partida</Label>
             <select
               id="partida"
-              className="w-full mt-1 p-2 border rounded-md"
+              className="w-full mt-1 p-3 border rounded-md h-12 min-h-[44px]"
               value={partidaSelecionada?.partida_id || ''}
               onChange={(e) => handlePartidaChange(e.target.value)}
             >
@@ -701,7 +701,7 @@ const ResultadoForm: React.FC = () => {
                     min="0"
                     value={placar.timeA}
                     readOnly
-                    className="bg-gray-100"
+                    className="bg-gray-100 h-12 min-h-[44px]"
                   />
                   <p className="text-xs text-gray-500 mt-1">Calculado automaticamente com base nos gols dos jogadores</p>
                 </div>
@@ -713,7 +713,7 @@ const ResultadoForm: React.FC = () => {
                     min="0"
                     value={placar.timeB}
                     readOnly
-                    className="bg-gray-100"
+                    className="bg-gray-100 h-12 min-h-[44px]"
                   />
                   <p className="text-xs text-gray-500 mt-1">Calculado automaticamente com base nos gols dos jogadores</p>
                 </div>
@@ -752,7 +752,7 @@ const ResultadoForm: React.FC = () => {
                           {absentPlayers.has(jogadorId) ? '✓' : '✗'}
                         </button>
                       </h4>
-                      <div className={`grid grid-cols-5 gap-2 ${absentPlayers.has(jogadorId) ? 'opacity-50' : ''}`}>
+                      <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-5 gap-2'} ${absentPlayers.has(jogadorId) ? 'opacity-50' : ''}`}>
                         <div>
                           <Label>Gols</Label>
                           <Input
@@ -761,6 +761,7 @@ const ResultadoForm: React.FC = () => {
                             value={resultados[jogadorId]?.gols || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'gols', Number(e.target.value))}
                             disabled={absentPlayers.has(jogadorId)}
+                            className="h-10 min-h-[44px]"
                           />
                         </div>
                         <div>
@@ -771,6 +772,7 @@ const ResultadoForm: React.FC = () => {
                             value={resultados[jogadorId]?.assistencias || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'assistencias', Number(e.target.value))}
                             disabled={absentPlayers.has(jogadorId)}
+                            className="h-10 min-h-[44px]"
                           />
                         </div>
                         <div>
@@ -781,6 +783,7 @@ const ResultadoForm: React.FC = () => {
                             value={resultados[jogadorId]?.desarmes || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'desarmes', Number(e.target.value))}
                             disabled={absentPlayers.has(jogadorId)}
+                            className="h-10 min-h-[44px]"
                           />
                         </div>
                         <div>
@@ -791,6 +794,7 @@ const ResultadoForm: React.FC = () => {
                             value={resultados[jogadorId]?.defesas || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'defesas', Number(e.target.value))}
                             disabled={absentPlayers.has(jogadorId)}
+                            className="h-10 min-h-[44px]"
                           />
                         </div>
                         <div>
@@ -801,6 +805,7 @@ const ResultadoForm: React.FC = () => {
                             value={resultados[jogadorId]?.faltas || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'faltas', Number(e.target.value))}
                             disabled={absentPlayers.has(jogadorId)}
+                            className="h-10 min-h-[44px]"
                           />
                         </div>
                       </div>
@@ -811,7 +816,7 @@ const ResultadoForm: React.FC = () => {
 
               <Button 
                 onClick={processarResultado} 
-                className="w-full"
+                className="w-full h-12 min-h-[44px]"
                 disabled={processando || carregandoJogadores}
               >
                 {processando ? 'Processando...' : 'Processar Resultado'}
