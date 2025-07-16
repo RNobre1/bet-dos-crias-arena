@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Info, Settings, Calendar } from "lucide-react";
+import { Info, Settings, Calendar, HelpCircle } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { generateBalancedTeamsV3, preparePlayersV3, LineupResult, TeamPlayerV3 } from "@/utils/teamFormationV3";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,7 +124,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
             <Dialog>
               <DialogTrigger asChild>
                 <button className="text-gray-500 hover:text-gray-700 transition-colors">
-                  <Info className="w-4 h-4" />
+                  <HelpCircle className="w-4 h-4" />
                 </button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
@@ -135,7 +135,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
                   <div>
                     <h4 className="font-semibold mb-2">🎯 Análise de Perfis de Jogador</h4>
                     <p className="mb-2">O sistema calcula três scores universais para cada jogador:</p>
-                    <ul className="list-disc list-inside space-y-1 ml-4">
+                    <ul className="list-disc list-inside space-y-1 ml-4 text-sm">
                       <li><strong>Score Nota:</strong> Performance geral baseada no algoritmo v2.2</li>
                       <li><strong>Score Ataque:</strong> Capacidade ofensiva (gols + assistências)</li>
                       <li><strong>Score Defesa:</strong> Capacidade defensiva (desarmes + defesas)</li>
@@ -144,9 +144,9 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
                   
                   <div>
                     <h4 className="font-semibold mb-2">⚽ Aptidões por Função</h4>
-                    <p className="mb-2">Calcula a adequação de cada jogador para 7 funções táticas:</p>
-                    <ul className="list-disc list-inside space-y-1 ml-4">
-                      <li><strong>Goleiro (P_GOL):</strong> Prioriza defesas, penaliza contribuições ofensivas</li>
+                    <p className="mb-2">Calcula a adequação de cada jogador para 7 funções táticas com fórmulas aprimoradas:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4 text-sm">
+                      <li><strong>Goleiro (P_GOL):</strong> Fórmula robusta que prioriza defesas (peso 2.5) e penaliza contribuições ofensivas</li>
                       <li><strong>Zagueiro/Lateral:</strong> Equilibra defesa com apoio ofensivo</li>
                       <li><strong>Volante/Meia:</strong> Balanceia criação e marcação</li>
                       <li><strong>Ponta/Atacante:</strong> Foca em finalização e assistências</li>
@@ -155,9 +155,9 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
                   
                   <div>
                     <h4 className="font-semibold mb-2">🔄 Otimização Combinatória</h4>
-                    <p className="mb-2">O algoritmo:</p>
-                    <ul className="list-disc list-inside space-y-1 ml-4">
-                      <li>Gera todas as combinações válidas de times</li>
+                    <p className="mb-2">O algoritmo v3.0 utiliza otimização combinatória avançada:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4 text-sm">
+                      <li>Gera todas as combinações válidas de times de forma eficiente</li>
                       <li>Respeita funções obrigatórias (ex: 1 goleiro por time)</li>
                       <li>Calcula o "Custo de Desequilíbrio" para cada combinação</li>
                       <li>Seleciona a combinação mais equilibrada</li>
@@ -166,7 +166,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
                   
                   <div>
                     <h4 className="font-semibold mb-2">⚖️ Custo de Desequilíbrio</h4>
-                    <p className="mb-2">Minimiza diferenças entre times em múltiplas dimensões:</p>
+                    <p className="mb-2">Sistema robusto que minimiza diferenças entre times em múltiplas dimensões:</p>
                     <ul className="list-disc list-inside space-y-1 ml-4">
                       <li>Diferença de notas totais (peso 1.5)</li>
                       <li>Diferença de capacidade ofensiva (peso 1.0)</li>

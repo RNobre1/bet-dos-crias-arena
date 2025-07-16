@@ -171,7 +171,7 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
   };
 
   const isSelectionInBilhete = (jogadorId: string, detalhe: string): boolean => {
-    return selecoes.some(s => s.detalhe === detalhe);
+    return selecoes.some(s => s.detalhe === detalhe && s.jogador_id === jogadorId);
   };
 
   const renderMarketButton = (
