@@ -135,20 +135,33 @@ const HistoricoApostas: React.FC = () => {
 
               <div className="space-y-2 mb-3">
                 {bilhete.selecoes.map((selecao, index) => (
-                  <div key={selecao.selecao_id} className="bg-gray-50 p-2 rounded text-sm">
+                  <div key={selecao.selecao_id} className={`p-2 rounded text-sm ${
+                    selecao.status_selecao === 'ANULADA' ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'
+                  }`}>
                     <div className="flex justify-between items-center">
                       <span className="font-medium">
                         {selecao.partidas.time_a_nome} vs {selecao.partidas.time_b_nome}
                       </span>
-                      <Badge variant="secondary">
-                        {selecao.odd_selecao.toFixed(2)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {selecao.status_selecao === 'ANULADA' && (
+                          <Badge variant="outline" className="text-yellow-600 border-yellow-400">
+                            ANULADA
+                          </Badge>
+                        )}
+                        <Badge variant={selecao.status_selecao === 'ANULADA' ? 'outline' : 'secondary'} 
+                               className={selecao.status_selecao === 'ANULADA' ? 'line-through text-gray-400' : ''}>
+                          {selecao.odd_selecao.toFixed(2)}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="text-gray-600">
+                    <div className={`text-gray-600 ${selecao.status_selecao === 'ANULADA' ? 'line-through' : ''}`}>
                       {selecao.categoria_aposta === 'MERCADO_JOGADOR' && selecao.players 
                         ? `${selecao.players.jogador} - ${selecao.detalhe_aposta.replace(`_${selecao.jogador_alvo_id}`, '')}`
                         : `${selecao.categoria_aposta} - ${selecao.detalhe_aposta}`
                       }
+                      {selecao.status_selecao === 'ANULADA' && (
+                        <span className="text-yellow-600 font-medium ml-2">(Jogador ausente)</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -161,17 +174,26 @@ const HistoricoApostas: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-sm text-gray-600">Odd total: </span>
-                  <span className="font-bold">{bilhete.odd_total.toFixed(2)}</span>
+                  <span className="font-bold">
+                    {bilhete.odd_total.toFixed(2)}
+                    {bilhete.selecoes.some(s => s.status_selecao === 'ANULADA') && (
+                      <span className="text-yellow-600 text-xs ml-1">(Recalculada)</span>
+                    )}
+                  </span>
                 </div>
                 <div>
                   <span className="text-sm text-gray-600">Retorno: </span>
                   <span className={`font-bold ${
-                    bilhete.status_bilhete === 'GANHO' ? 'text-green-600' : 'text-gray-500'
+                    bilhete.status_bilhete === 'GANHO' ? 'text-green-600' : 
+                    bilhete.status_bilhete === 'ANULADO' ? 'text-yellow-600' : 'text-gray-500'
                   }`}>
-                    R$ {bilhete.status_bilhete === 'GANHO' 
+                    R$ {bilhete.status_bilhete === 'GANHO' || bilhete.status_bilhete === 'ANULADO'
                       ? (bilhete.valor_apostado * bilhete.odd_total).toFixed(2) 
                       : '0.00'
                     }
+                    {bilhete.status_bilhete === 'ANULADO' && (
+                      <span className="text-xs ml-1">(Devolvido)</span>
+                    )}
                   </span>
                 </div>
               </div>

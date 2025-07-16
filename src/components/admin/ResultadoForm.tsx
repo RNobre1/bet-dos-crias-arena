@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,12 +30,28 @@ const ResultadoForm: React.FC = () => {
   const [resultados, setResultados] = useState<{ [key: string]: PlayerStats }>({});
   const [placar, setPlacar] = useState({ timeA: 0, timeB: 0 });
   const [processando, setProcessando] = useState(false);
+  const [absentPlayers, setAbsentPlayers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (profile?.role === 'ADMIN') {
       loadPartidas();
     }
   }, [profile]);
+
+  // Calculate team scores based on player goals
+  useEffect(() => {
+    if (partidaSelecionada) {
+      const timeAGols = (partidaSelecionada.time_a_jogadores || [])
+        .filter(playerId => !absentPlayers.has(playerId))
+        .reduce((total, playerId) => total + (resultados[playerId]?.gols || 0), 0);
+      
+      const timeBGols = (partidaSelecionada.time_b_jogadores || [])
+        .filter(playerId => !absentPlayers.has(playerId))
+        .reduce((total, playerId) => total + (resultados[playerId]?.gols || 0), 0);
+      
+      setPlacar({ timeA: timeAGols, timeB: timeBGols });
+    }
+  }, [resultados, absentPlayers, partidaSelecionada]);
 
   const loadPartidas = async () => {
     try {
@@ -76,6 +91,35 @@ const ResultadoForm: React.FC = () => {
     }
   };
 
+  const toggleAbsentPlayer = (playerId: string) => {
+    setAbsentPlayers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(playerId)) {
+        newSet.delete(playerId);
+      } else {
+        newSet.add(playerId);
+        // Clear stats for absent player
+        setResultados(prevResultados => {
+          const newResultados = { ...prevResultados };
+          delete newResultados[playerId];
+          return newResultados;
+        });
+      }
+      return newSet;
+    });
+  };
+
+  const getPlayerTeam = (playerId: string): string => {
+    if (!partidaSelecionada) return '';
+    
+    if (partidaSelecionada.time_a_jogadores?.includes(playerId)) {
+      return partidaSelecionada.time_a_nome;
+    } else if (partidaSelecionada.time_b_jogadores?.includes(playerId)) {
+      return partidaSelecionada.time_b_nome;
+    }
+    return '';
+  };
+
   const processarResultado = async () => {
     if (!partidaSelecionada) {
       toast.error('Selecione uma partida');
@@ -100,6 +144,12 @@ const ResultadoForm: React.FC = () => {
 
       // Atualizar estatísticas dos jogadores
       for (const jogadorId of jogadoresEscalados) {
+        // Skip absent players
+        if (absentPlayers.has(jogadorId)) {
+          console.log(`Jogador ${jogadorId} marcado como ausente, pulando atualização de estatísticas`);
+          continue;
+        }
+
         // Garantir que todas as estatísticas tenham valores numéricos válidos
         const statsRaw = resultados[jogadorId] || {
           gols: 0,
@@ -207,13 +257,14 @@ const ResultadoForm: React.FC = () => {
       console.log('Partida marcada como finalizada');
 
       // Processar apostas
-      await processarApostas(partidaSelecionada.partida_id, jogadoresEscalados);
+      await processarApostas(partidaSelecionada.partida_id, jogadoresEscalados, absentPlayers);
 
       toast.success('Resultado processado com sucesso!');
       setPartidaSelecionada(null);
       setJogadores([]);
       setResultados({});
       setPlacar({ timeA: 0, timeB: 0 });
+      setAbsentPlayers(new Set());
       loadPartidas();
 
     } catch (error) {
@@ -224,7 +275,7 @@ const ResultadoForm: React.FC = () => {
     }
   };
 
-  const processarApostas = async (partidaId: number, jogadoresEscalados: string[]) => {
+  const processarApostas = async (partidaId: number, jogadoresEscalados: string[], absentPlayers: Set<string>) => {
     console.log('=== INICIANDO PROCESSAMENTO DE APOSTAS ===');
     console.log('Buscando seleções para partida_id:', partidaId);
 
@@ -251,13 +302,15 @@ const ResultadoForm: React.FC = () => {
 
       const selecoesParaAtualizar: Array<{
         selecao_id: number;
-        status: 'GANHA' | 'PERDIDA';
+        status: 'GANHA' | 'PERDIDA' | 'ANULADA';
       }> = [];
 
       const bilhetesParaAtualizar = new Map<number, {
         bilhete_id: number;
         todas_ganhas: boolean;
         alguma_perdida: boolean;
+        alguma_anulada: boolean;
+        odds_validas: number[];
       }>();
 
       // Processar cada seleção
@@ -268,9 +321,15 @@ const ResultadoForm: React.FC = () => {
           jogador_alvo: selecao.jogador_alvo_id
         });
 
-        let statusSelecao: 'GANHA' | 'PERDIDA' = 'PERDIDA';
+        let statusSelecao: 'GANHA' | 'PERDIDA' | 'ANULADA' = 'PERDIDA';
 
-        if (selecao.categoria_aposta === 'RESULTADO_PARTIDA') {
+        // Check if player was absent (for player bets)
+        if (selecao.categoria_aposta === 'MERCADO_JOGADOR' && 
+            selecao.jogador_alvo_id && 
+            absentPlayers.has(selecao.jogador_alvo_id)) {
+          statusSelecao = 'ANULADA';
+          console.log(`Seleção ${selecao.selecao_id} anulada - jogador ${selecao.jogador_alvo_id} ausente`);
+        } else if (selecao.categoria_aposta === 'RESULTADO_PARTIDA') {
           // Processar apostas de resultado
           if (selecao.detalhe_aposta === 'VITORIA_A' && placar.timeA > placar.timeB) {
             statusSelecao = 'GANHA';
@@ -342,14 +401,23 @@ const ResultadoForm: React.FC = () => {
           bilhetesParaAtualizar.set(bilheteId, {
             bilhete_id: bilheteId,
             todas_ganhas: true,
-            alguma_perdida: false
+            alguma_perdida: false,
+            alguma_anulada: false,
+            odds_validas: []
           });
         }
 
         const bilheteStatus = bilhetesParaAtualizar.get(bilheteId)!;
-        if (statusSelecao === 'PERDIDA') {
+        
+        if (statusSelecao === 'ANULADA') {
+          bilheteStatus.alguma_anulada = true;
+          // Don't include this odd in the recalculation
+        } else if (statusSelecao === 'PERDIDA') {
           bilheteStatus.todas_ganhas = false;
           bilheteStatus.alguma_perdida = true;
+          bilheteStatus.odds_validas.push(selecao.odd_selecao);
+        } else if (statusSelecao === 'GANHA') {
+          bilheteStatus.odds_validas.push(selecao.odd_selecao);
         }
       }
 
@@ -367,19 +435,40 @@ const ResultadoForm: React.FC = () => {
         }
       }
 
-      // Atualizar status dos bilhetes
+      // Atualizar status e odds dos bilhetes
       for (const [bilheteId, bilheteInfo] of bilhetesParaAtualizar) {
-        const statusBilhete = bilheteInfo.todas_ganhas ? 'GANHO' : 'PERDIDO';
+        let statusBilhete: 'GANHO' | 'PERDIDO' | 'ANULADO';
+        let novaOddTotal = 1;
         
-        const { error: updateError } = await supabase
+        // Calculate new total odd from valid selections only
+        if (bilheteInfo.odds_validas.length > 0) {
+          novaOddTotal = bilheteInfo.odds_validas.reduce((total, odd) => total * odd, 1);
+        }
+        
+        // Determine bilhete status
+        if (bilheteInfo.odds_validas.length === 0) {
+          // All selections were annulled
+          statusBilhete = 'ANULADO';
+          novaOddTotal = 1; // Return original stake
+        } else if (bilheteInfo.todas_ganhas && !bilheteInfo.alguma_perdida) {
+          statusBilhete = 'GANHO';
+        } else {
+          statusBilhete = 'PERDIDO';
+        }
+        
+        // Update bilhete with new status and recalculated odd
+        const { error: updateBilheteError } = await supabase
           .from('bilhetes')
-          .update({ status_bilhete: statusBilhete })
+          .update({ 
+            status_bilhete: statusBilhete,
+            odd_total: novaOddTotal
+          })
           .eq('bilhete_id', bilheteId);
 
-        if (updateError) {
-          console.error(`Erro ao atualizar bilhete ${bilheteId}:`, updateError);
+        if (updateBilheteError) {
+          console.error(`Erro ao atualizar bilhete ${bilheteId}:`, updateBilheteError);
         } else {
-          console.log(`Bilhete ${bilheteId} atualizado para ${statusBilhete}`);
+          console.log(`Bilhete ${bilheteId} atualizado para ${statusBilhete} com odd ${novaOddTotal.toFixed(2)}`);
         }
       }
 
@@ -388,7 +477,7 @@ const ResultadoForm: React.FC = () => {
       
       // Buscar todos os bilhetes ganhos
       const bilhetesGanhos = Array.from(bilhetesParaAtualizar.entries())
-        .filter(([_, info]) => info.todas_ganhas)
+        .filter(([_, info]) => info.todas_ganhas && !info.alguma_perdida)
         .map(([bilheteId, _]) => bilheteId);
 
       console.log('Bilhetes ganhos encontrados:', bilhetesGanhos);
@@ -409,6 +498,7 @@ const ResultadoForm: React.FC = () => {
 
         // Atualizar saldo de cada usuário vencedor
         for (const bilhete of bilhetesGanhosData || []) {
+          // Use the recalculated odd_total from the database
           const premioValue = Number(bilhete.valor_apostado) * Number(bilhete.odd_total);
           
           console.log(`Processando prêmio para usuário ${bilhete.user_id}:`);
@@ -456,6 +546,55 @@ const ResultadoForm: React.FC = () => {
         console.log('Nenhum bilhete ganho encontrado para atualização de saldo');
       }
 
+      // === PROCESSAR BILHETES ANULADOS (DEVOLVER STAKE) ===
+      console.log('=== PROCESSANDO BILHETES ANULADOS ===');
+      
+      const bilhetesAnulados = Array.from(bilhetesParaAtualizar.entries())
+        .filter(([_, info]) => info.odds_validas.length === 0)
+        .map(([bilheteId, _]) => bilheteId);
+
+      if (bilhetesAnulados.length > 0) {
+        const { data: bilhetesAnuladosData, error: bilhetesAnuladosError } = await supabase
+          .from('bilhetes')
+          .select('bilhete_id, user_id, valor_apostado')
+          .in('bilhete_id', bilhetesAnulados);
+
+        if (bilhetesAnuladosError) {
+          console.error('Erro ao buscar bilhetes anulados:', bilhetesAnuladosError);
+        } else {
+          // Return stake to users with annulled bets
+          for (const bilhete of bilhetesAnuladosData || []) {
+            const { data: usuarioAtual, error: fetchUsuarioError } = await supabase
+              .from('usuarios')
+              .select('saldo_ficticio')
+              .eq('user_id', bilhete.user_id)
+              .single();
+
+            if (fetchUsuarioError) {
+              console.error(`Erro ao buscar usuário ${bilhete.user_id}:`, fetchUsuarioError);
+              continue;
+            }
+
+            const saldoAtual = Number(usuarioAtual?.saldo_ficticio || 0);
+            const novoSaldo = saldoAtual + Number(bilhete.valor_apostado);
+
+            const { error: updateSaldoError } = await supabase
+              .from('usuarios')
+              .update({ 
+                saldo_ficticio: novoSaldo,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', bilhete.user_id);
+
+            if (updateSaldoError) {
+              console.error(`Erro ao devolver stake do usuário ${bilhete.user_id}:`, updateSaldoError);
+            } else {
+              console.log(`💰 Stake devolvido para usuário ${bilhete.user_id}: R$ ${bilhete.valor_apostado}`);
+            }
+          }
+        }
+      }
+
       console.log('=== PROCESSAMENTO DE APOSTAS CONCLUÍDO ===');
 
     } catch (error) {
@@ -498,6 +637,7 @@ const ResultadoForm: React.FC = () => {
       // Limpar estados anteriores
       setJogadores([]);
       setResultados({});
+      setAbsentPlayers(new Set());
       
       // Buscar dados dos jogadores escalados
       const jogadoresEscalados = [
@@ -560,8 +700,10 @@ const ResultadoForm: React.FC = () => {
                     type="number"
                     min="0"
                     value={placar.timeA}
-                    onChange={(e) => setPlacar(prev => ({ ...prev, timeA: Number(e.target.value) }))}
+                    readOnly
+                    className="bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Calculado automaticamente com base nos gols dos jogadores</p>
                 </div>
                 <div>
                   <Label htmlFor="placarB">Placar {partidaSelecionada.time_b_nome}</Label>
@@ -570,8 +712,10 @@ const ResultadoForm: React.FC = () => {
                     type="number"
                     min="0"
                     value={placar.timeB}
-                    onChange={(e) => setPlacar(prev => ({ ...prev, timeB: Number(e.target.value) }))}
+                    readOnly
+                    className="bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Calculado automaticamente com base nos gols dos jogadores</p>
                 </div>
               </div>
 
@@ -583,11 +727,32 @@ const ResultadoForm: React.FC = () => {
                   </div>
                 ) : (
                   [...(partidaSelecionada.time_a_jogadores || []), ...(partidaSelecionada.time_b_jogadores || [])].map(jogadorId => (
-                    <div key={jogadorId} className="border rounded-lg p-4">
-                      <h4 className="font-medium mb-2 text-blue-600">
-                        {getNomeJogador(jogadorId)}
+                    <div key={jogadorId} className={`border rounded-lg p-4 ${absentPlayers.has(jogadorId) ? 'bg-red-50 border-red-200' : ''}`}>
+                      <h4 className="font-medium mb-2 text-blue-600 flex items-center justify-between">
+                        <div>
+                          {getNomeJogador(jogadorId)}
+                          <span className="text-sm text-gray-500 ml-2">
+                            ({getPlayerTeam(jogadorId)})
+                          </span>
+                          {absentPlayers.has(jogadorId) && (
+                            <span className="text-red-600 text-sm ml-2 font-bold">
+                              [AUSENTE]
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => toggleAbsentPlayer(jogadorId)}
+                          className={`px-2 py-1 rounded text-sm font-bold ${
+                            absentPlayers.has(jogadorId) 
+                              ? 'bg-green-500 text-white hover:bg-green-600' 
+                              : 'bg-red-500 text-white hover:bg-red-600'
+                          }`}
+                          type="button"
+                        >
+                          {absentPlayers.has(jogadorId) ? '✓' : '✗'}
+                        </button>
                       </h4>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className={`grid grid-cols-5 gap-2 ${absentPlayers.has(jogadorId) ? 'opacity-50' : ''}`}>
                         <div>
                           <Label>Gols</Label>
                           <Input
@@ -595,6 +760,7 @@ const ResultadoForm: React.FC = () => {
                             min="0"
                             value={resultados[jogadorId]?.gols || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'gols', Number(e.target.value))}
+                            disabled={absentPlayers.has(jogadorId)}
                           />
                         </div>
                         <div>
@@ -604,6 +770,7 @@ const ResultadoForm: React.FC = () => {
                             min="0"
                             value={resultados[jogadorId]?.assistencias || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'assistencias', Number(e.target.value))}
+                            disabled={absentPlayers.has(jogadorId)}
                           />
                         </div>
                         <div>
@@ -613,6 +780,7 @@ const ResultadoForm: React.FC = () => {
                             min="0"
                             value={resultados[jogadorId]?.desarmes || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'desarmes', Number(e.target.value))}
+                            disabled={absentPlayers.has(jogadorId)}
                           />
                         </div>
                         <div>
@@ -622,6 +790,7 @@ const ResultadoForm: React.FC = () => {
                             min="0"
                             value={resultados[jogadorId]?.defesas || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'defesas', Number(e.target.value))}
+                            disabled={absentPlayers.has(jogadorId)}
                           />
                         </div>
                         <div>
@@ -631,6 +800,7 @@ const ResultadoForm: React.FC = () => {
                             min="0"
                             value={resultados[jogadorId]?.faltas || 0}
                             onChange={(e) => handleResultadoChange(jogadorId, 'faltas', Number(e.target.value))}
+                            disabled={absentPlayers.has(jogadorId)}
                           />
                         </div>
                       </div>
