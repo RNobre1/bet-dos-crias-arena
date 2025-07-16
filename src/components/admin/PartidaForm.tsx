@@ -206,7 +206,6 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
               value={timeANome}
               onChange={(e) => setTimeANome(e.target.value)}
               placeholder="Ex: Time Azul"
-              className="h-12 min-h-[44px]"
             />
           </div>
 
@@ -218,7 +217,6 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
               value={timeBNome}
               onChange={(e) => setTimeBNome(e.target.value)}
               placeholder="Ex: Time Vermelho"
-              className="h-12 min-h-[44px]"
             />
           </div>
 
@@ -230,7 +228,6 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
               value={dataPartida}
               onChange={(e) => setDataPartida(e.target.value)}
               min={dataMinima}
-              className="h-12 min-h-[44px]"
             />
           </div>
 
@@ -238,7 +235,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
             <Button 
               onClick={criarPartida} 
               disabled={loading || !generatedLineup}
-              className="flex-1 bg-green-600 hover:bg-green-700 h-12 min-h-[44px]"
+              className="flex-1 bg-green-600 hover:bg-green-700"
             >
               {loading ? 'Criando...' : 'Criar Partida'}
             </Button>
@@ -246,7 +243,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
             <Button 
               onClick={onCancel}
               variant="outline"
-              className="flex-1 h-12 min-h-[44px]"
+              className="flex-1"
             >
               Cancelar
             </Button>
@@ -293,7 +290,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
                       max="5"
                       value={count}
                       onChange={(e) => handleRoleChange(role, e.target.value)}
-                      className="w-20 h-10 min-h-[44px]"
+                      className="w-20"
                       disabled={role === 'Goleiro'}
                     />
                     {role !== 'Goleiro' && (
@@ -312,7 +309,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
                 <div className="pt-2 border-t">
                   <Label className="text-sm text-gray-600">Adicionar função:</Label>
                   <Select onValueChange={addRole}>
-                    <SelectTrigger className="h-10 min-h-[44px]">
+                    <SelectTrigger>
                       <SelectValue placeholder="Selecione uma função" />
                     </SelectTrigger>
                     <SelectContent>
@@ -342,7 +339,7 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onPartidaCriada, onCancel }) 
               <Button 
                 onClick={generateLineup}
                 disabled={isGeneratingLineup || validationErrors.length > 0}
-                className="w-full h-12 min-h-[44px]"
+                className="w-full"
               >
                 {isGeneratingLineup ? (
                   <>

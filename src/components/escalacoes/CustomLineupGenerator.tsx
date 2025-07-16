@@ -249,7 +249,7 @@ const CustomLineupGenerator: React.FC<CustomLineupGeneratorProps> = ({ jogadores
                   min={4}
                   max={maxPlayersPerTeam}
                   step={1}
-                  className="w-full h-6"
+                  className="w-full"
                 />
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>Mín: 4</span>
@@ -273,7 +273,7 @@ const CustomLineupGenerator: React.FC<CustomLineupGeneratorProps> = ({ jogadores
                     max="5"
                     value={count}
                     onChange={(e) => handleRoleChange(role, e.target.value)}
-                    className="w-20 h-10 min-h-[44px]"
+                    className="w-20"
                     disabled={role === 'Goleiro'} // Goleiro sempre 1
                   />
                   {role !== 'Goleiro' && (
@@ -292,7 +292,7 @@ const CustomLineupGenerator: React.FC<CustomLineupGeneratorProps> = ({ jogadores
               <div className="pt-2 border-t">
                 <Label className="text-sm text-gray-600">Adicionar função:</Label>
                 <Select onValueChange={addRole}>
-                  <SelectTrigger className="h-10 min-h-[44px]">
+                  <SelectTrigger>
                     <SelectValue placeholder="Selecione uma função" />
                   </SelectTrigger>
                   <SelectContent>
@@ -327,7 +327,8 @@ const CustomLineupGenerator: React.FC<CustomLineupGeneratorProps> = ({ jogadores
           <Button 
             onClick={generateLineup}
             disabled={isGenerating || validationErrors.length > 0}
-            className="w-full h-12 min-h-[44px]"
+            className="w-full"
+            size="lg"
           >
             {isGenerating ? (
               <>

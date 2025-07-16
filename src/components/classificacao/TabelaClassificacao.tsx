@@ -31,8 +31,8 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
   };
 
   const MobileCard = ({ player, index }: { player: any, index: number }) => (
-    <Card className={`mb-3 ${index < 3 ? 'bg-green-50 border-green-200' : ''}`}>
-      <CardContent className="p-3">
+    <Card className={`mb-4 ${index < 3 ? 'bg-green-50 border-green-200' : ''}`}>
+      <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-lg">
@@ -43,7 +43,7 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
             </span>
             <div>
               <Link to={`/player/${player.id}`}>
-                <h3 className="font-semibold text-base text-blue-600 hover:text-blue-800 cursor-pointer transition-colors min-h-[44px] flex items-center">
+                <h3 className="font-semibold text-lg text-blue-600 hover:text-blue-800 cursor-pointer transition-colors">
                   {player.jogador}
                 </h3>
               </Link>
@@ -52,12 +52,12 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
               </Badge>
             </div>
           </div>
-          <Badge variant={index < 3 ? "default" : "secondary"} className="font-bold text-base px-3 py-2">
+          <Badge variant={index < 3 ? "default" : "secondary"} className="font-bold text-lg">
             {player.notaCalculada.toFixed(1)}
           </Badge>
         </div>
         
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Jogos:</span>

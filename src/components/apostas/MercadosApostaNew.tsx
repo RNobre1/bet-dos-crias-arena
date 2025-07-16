@@ -186,7 +186,7 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     
     if (odd === null || isBlocked) {
       return (
-        <div className={`${isMobile ? 'p-1 min-h-[44px] min-w-[44px]' : 'p-2'} border rounded bg-gray-100 text-center text-xs opacity-50 cursor-not-allowed`}>
+        <div className="p-2 border rounded bg-gray-100 text-center text-xs opacity-50 cursor-not-allowed">
           <div className="flex items-center justify-center gap-1">
             <Lock className="w-3 h-3" />
           </div>
@@ -198,14 +198,14 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
     return (
       <button
         onClick={() => adicionarSelecao('MERCADO_JOGADOR', detalhe, odd, jogadorId, jogadorNome)}
-        className={`${isMobile ? 'p-1 min-h-[44px] min-w-[44px]' : 'p-2'} border rounded text-center text-xs transition-colors ${
+        className={`p-2 border rounded text-center text-xs transition-colors ${
           isSelected 
             ? 'bg-green-100 border-green-500 text-green-800' 
             : 'hover:bg-gray-50 border-gray-300'
         }`}
       >
-        <div className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>{label}</div>
-        <div className={`font-bold ${isMobile ? 'text-xs' : 'text-sm'} ${isSelected ? 'text-green-700' : 'text-blue-600'}`}>
+        <div className="font-medium">{label}</div>
+        <div className={`font-bold ${isSelected ? 'text-green-700' : 'text-blue-600'}`}>
           {odd.toFixed(2)}
         </div>
       </button>
@@ -251,13 +251,13 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
           
           <CollapsibleContent>
             <CardContent>
-              <div className={`${isMobile ? 'overflow-x-auto -mx-4 px-4' : 'overflow-x-auto'}`}>
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className={`text-left ${isMobile ? 'p-1 min-w-[80px]' : 'p-2'} font-medium text-sm`}>Jogador</th>
+                      <th className="text-left p-2 font-medium text-sm">Jogador</th>
                       {markets.map(market => (
-                        <th key={market.key} className={`text-center ${isMobile ? 'p-1 min-w-[60px]' : 'p-2 min-w-[80px]'} font-medium text-sm`}>
+                        <th key={market.key} className="text-center p-2 font-medium text-sm min-w-[80px]">
                           {market.label}
                         </th>
                       ))}
@@ -273,10 +273,10 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
                       return (
                         <tr key={jogador.id} className="border-t">
                           <td className="p-2 font-medium text-sm">
-                            {isMobile ? jogador.jogador.split(' ')[0] : jogador.jogador}
+                            {jogador.jogador}
                           </td>
                           {markets.map(market => (
-                            <td key={market.key} className={`${isMobile ? 'p-1' : 'p-2'} text-center`}>
+                            <td key={market.key} className="p-2 text-center">
                               {renderMarketButton(
                                 jogador.id,
                                 jogador.jogador,

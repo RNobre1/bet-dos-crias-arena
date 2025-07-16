@@ -174,10 +174,11 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
               <Button 
                 onClick={() => setCurrentView('custom')}
                 variant="outline"
-                className={`flex items-center gap-2 ${isMobile ? 'h-12 px-3 text-sm' : 'h-10 px-4'} min-h-[44px]`}
+                size="sm"
+                className="flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
-                {isMobile ? 'Personalizar' : 'Gerar Escalação'}
+                Gere sua própria escalação
               </Button>
             </CardTitle>
           </CardHeader>
@@ -231,7 +232,7 @@ const EscalacoesViewNew: React.FC<EscalacoesViewNewProps> = ({ jogadores }) => {
                 <div className="flex items-center gap-4 mb-4">
                   <label className="font-medium">Mostrar:</label>
                   <Select value={showTeam} onValueChange={(value: 'A' | 'B' | 'AMBOS') => setShowTeam(value)}>
-                    <SelectTrigger className={`${isMobile ? 'w-40 h-12' : 'w-48 h-10'} min-h-[44px]`}>
+                    <SelectTrigger className={isMobile ? 'w-40' : 'w-48'}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

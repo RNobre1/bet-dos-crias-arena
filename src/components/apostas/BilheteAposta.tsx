@@ -176,7 +176,6 @@ const BilheteAposta: React.FC<BilheteApostaProps> = ({
                   step="0.01"
                   min="0.01"
                   max={profile?.saldo_ficticio || 0}
-                  className="h-12 min-h-[44px]"
                 />
               </div>
 
@@ -194,7 +193,7 @@ const BilheteAposta: React.FC<BilheteApostaProps> = ({
               <Button 
                 onClick={confirmarAposta}
                 disabled={isLoading || !valorAposta || parseFloat(valorAposta) <= 0}
-                className="w-full h-12 min-h-[44px]"
+                className="w-full"
               >
                 {isLoading ? 'Confirmando...' : 'Confirmar Aposta'}
               </Button>
