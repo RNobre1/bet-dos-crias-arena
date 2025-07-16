@@ -84,10 +84,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="text-sm">
-              <span className="text-green-200">Saldo: </span>
-              <span className="font-bold">R$ {(profile?.saldo_ficticio || 0).toFixed(2)}</span>
-            </div>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -97,7 +93,10 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
                       {profile?.username?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <span>{profile?.username}</span>
+                  <div className="flex flex-col items-start">
+                    <span>{profile?.username}</span>
+                    <span className="text-xs text-green-200">C$ {(profile?.saldo_ficticio || 0).toFixed(2)}</span>
+                  </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
