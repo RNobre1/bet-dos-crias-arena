@@ -36,7 +36,7 @@ export const calculatePlayerNote = (player: Tables<"players">): number => {
   // - k (Sensibilidade): 0.5 (diferenciação entre jogadores com médias próximas)
   
   const piso = 5.0;
-  const amplitude = 0.0;
+  const amplitude = 5.0;
   const pontoInflexao = 5.0;
   const k = 0.5;
 
