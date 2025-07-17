@@ -38,7 +38,7 @@ export const calculatePlayerNote = (player: Tables<"players">): number => {
   const piso = 5.0;
   const amplitude = 5.0;
   const pontoInflexao = 5.0;
-  const k = 1.5;
+  const k = 0.1;
 
   const notaFinal = piso + (amplitude / (1 + Math.exp(-k * (pontuacaoMediaPorJogo - pontoInflexao))));
 
