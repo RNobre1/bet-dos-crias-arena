@@ -99,19 +99,19 @@ const PlayerDetails: React.FC = () => {
   const radarData = formatRadarData(skills);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-green-800 dark:bg-gray-800 text-white p-4">
+      <div className="bg-green-800 dark:bg-slate-800 text-white p-4">
         <div className="max-w-6xl mx-auto flex items-center gap-4">
           <Link to="/">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-green-700 dark:hover:bg-gray-700">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-green-700 dark:hover:bg-slate-700">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
           </Link>
           <div>
             <h1 className="text-2xl font-bold">{player.jogador}</h1>
-            <p className="text-green-200 dark:text-gray-300">Análise Detalhada de Performance</p>
+            <p className="text-green-200 dark:text-slate-300">Análise Detalhada de Performance</p>
           </div>
         </div>
       </div>

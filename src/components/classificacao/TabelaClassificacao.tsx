@@ -165,6 +165,11 @@ const TabelaClassificacao: React.FC<TabelaClassificacaoProps> = ({ jogadores }) 
                 <tbody>
                   {jogadoresComNota.map((player, index) => (
                     <tr key={player.id} className={`border-b border-gray-100 ${index < 3 ? 'bg-green-50' : ''}`}>
+                    <tr key={player.id} className={`border-b border-gray-100 dark:border-slate-700 ${
+                      index < 3 ? 'bg-green-50 dark:bg-green-500/10' : ''
+                    } ${
+                      player.status === 'Lesionado' ? 'bg-red-50 dark:bg-red-500/15' : ''
+                    }`}>
                       <td className="p-2 font-semibold text-center">
                         {index + 1}
                         {index === 0 && "🥇"}

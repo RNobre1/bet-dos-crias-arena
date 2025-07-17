@@ -98,10 +98,10 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-900 via-green-800 to-green-700 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">PRO VÁRZEA</CardTitle>
+          <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-500">PRO VÁRZEA</CardTitle>
           <CardDescription>Entre na sua conta ou crie uma nova</CardDescription>
         </CardHeader>
         <CardContent>

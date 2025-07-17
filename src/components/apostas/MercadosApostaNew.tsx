@@ -200,8 +200,8 @@ const MercadosApostaNew: React.FC<MercadosApostaNewProps> = ({ jogadores }) => {
         onClick={() => adicionarSelecao('MERCADO_JOGADOR', detalhe, odd, jogadorId, jogadorNome)}
         className={`p-2 border rounded text-center text-xs transition-colors ${
           isSelected 
-            ? 'bg-green-100 border-green-500 text-green-800' 
-            : 'hover:bg-gray-50 border-gray-300'
+            ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-500/20 dark:border-green-400 dark:text-green-400' 
+            : 'hover:bg-gray-50 dark:hover:bg-slate-700 border-gray-300 dark:border-slate-600'
         }`}
       >
         <div className="font-medium">{label}</div>

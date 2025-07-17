@@ -27,7 +27,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
     return (
       <>
         {/* Header superior para mobile */}
-        <div className="fixed top-0 left-0 right-0 bg-green-800 text-white shadow-lg z-50 h-16">
+        <div className="fixed top-0 left-0 right-0 bg-green-800 dark:bg-slate-900 text-white shadow-lg z-50 h-16">
           <div className="flex items-center justify-between h-full px-4">
             <h1 className="text-lg font-bold">PRO VÁRZEA</h1>
             
@@ -66,7 +66,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
         </div>
 
         {/* Navegação inferior para mobile */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 z-50">
           <div className="flex justify-around items-center py-2">
             {navigationItems.map((item) => {
               const Icon = item.icon;
@@ -96,7 +96,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
   }
 
   return (
-    <nav className="bg-green-800 text-white shadow-lg">
+    <nav className="bg-green-800 dark:bg-slate-900 text-white shadow-lg">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">

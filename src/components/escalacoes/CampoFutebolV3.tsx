@@ -171,7 +171,7 @@ const CampoFutebolV3: React.FC<CampoFutebolV3Props> = ({ timeA, timeB, showTeam 
     <div className="relative w-full max-w-5xl mx-auto">
       {/* Campo de futebol */}
       <div 
-        className="relative bg-green-500 dark:bg-green-600 rounded-lg shadow-xl overflow-hidden"
+        className="relative bg-green-500 dark:bg-emerald-900 rounded-lg shadow-xl overflow-hidden"
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(255,255,255,0.2) 50%, transparent 50%),

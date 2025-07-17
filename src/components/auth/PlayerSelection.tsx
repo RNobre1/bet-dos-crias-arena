@@ -77,11 +77,11 @@ const PlayerSelection = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-4">
       <div className="max-w-6xl mx-auto">
         <Card className="mb-6">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400 flex items-center justify-center gap-2">
+            <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-500 flex items-center justify-center gap-2">
               <Users className="w-6 h-6" />
               Escolha seu Jogador
             </CardTitle>
@@ -102,8 +102,8 @@ const PlayerSelection = () => {
                 key={jogador.id}
                 className={`transition-all duration-200 ${
                   isOccupied 
-                    ? 'opacity-50 bg-gray-100 dark:bg-gray-800' 
-                    : 'hover:shadow-lg hover:scale-105 cursor-pointer border-green-200 dark:border-green-700'
+                    ? 'opacity-50 bg-gray-100 dark:bg-slate-700' 
+                    : 'hover:shadow-lg hover:scale-105 cursor-pointer border-green-200 dark:border-green-500/30'
                 }`}
               >
                 <CardContent className="p-4">
@@ -112,6 +112,7 @@ const PlayerSelection = () => {
                     <div className="flex items-center gap-2">
                       <Trophy className="w-4 h-4 text-yellow-500" />
                       <span className="font-semibold text-green-600 dark:text-green-400">
+                      <span className="font-semibold text-green-600 dark:text-green-500">
                         {jogador.nota.toFixed(1)}
                       </span>
                     </div>
@@ -149,7 +150,7 @@ const PlayerSelection = () => {
                       <Button 
                         onClick={() => handleSelectPlayer(jogador.id)}
                         disabled={selecting}
-                        className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                        className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-400"
                       >
                         {selecting ? 'Selecionando...' : 'Escolher'}
                       </Button>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -136,7 +135,9 @@ const HistoricoApostas: React.FC = () => {
               <div className="space-y-2 mb-3">
                 {bilhete.selecoes.map((selecao, index) => (
                   <div key={selecao.selecao_id} className={`p-2 rounded text-sm ${
-                    selecao.status_selecao === 'ANULADA' ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'
+                    selecao.status_selecao === 'ANULADA' 
+                      ? 'bg-yellow-50 border border-yellow-200 dark:bg-amber-400/15 dark:border-amber-400/30' 
+                      : 'bg-gray-50 dark:bg-slate-700'
                   }`}>
                     <div className="flex justify-between items-center">
                       <span className="font-medium">
