@@ -32,12 +32,12 @@ export const calculatePlayerNote = (player: Tables<"players">): number => {
   // Usando função de curva logística com parâmetros calibrados:
   // - Piso: 5.0 (nota mínima absoluta)
   // - Amplitude: 5.0 (escala de 5.0 a 10.0)
-  // - Ponto de Inflexão: 6.0 (jogador que gera 6.0 pontos/jogo = nota 7.5)
+  // - Ponto de Inflexão: 5.0 (jogador que gera 6.0 pontos/jogo = nota 7.5)
   // - k (Sensibilidade): 0.5 (diferenciação entre jogadores com médias próximas)
   
   const piso = 5.0;
   const amplitude = 5.0;
-  const pontoInflexao = 6.0;
+  const pontoInflexao = 5.0;
   const k = 0.5;
 
   const notaFinal = piso + (amplitude / (1 + Math.exp(-k * (pontuacaoMediaPorJogo - pontoInflexao))));
