@@ -68,7 +68,7 @@ const CampoFutebol: React.FC<CampoFutebolProps> = ({ timeA, timeB, showTeam }) =
     <div className="relative w-full max-w-4xl mx-auto">
       {/* Campo de futebol */}
       <div 
-        className="relative bg-green-500 rounded-lg shadow-xl"
+        className="relative bg-green-500 dark:bg-green-600 rounded-lg shadow-xl"
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(255,255,255,0.2) 50%, transparent 50%),
@@ -84,11 +84,11 @@ const CampoFutebol: React.FC<CampoFutebolProps> = ({ timeA, timeB, showTeam }) =
           <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white transform -translate-y-1/2"></div>
           
           {/* Círculo central */}
-          <div className={`absolute top-1/2 left-1/2 ${isMobile ? 'w-16 h-16' : 'w-24 h-24'} border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2`}></div>
+          <div className={`absolute top-1/2 left-1/2 ${isMobile ? 'w-16 h-16' : 'w-24 h-24'} border-2 border-white dark:border-gray-200 rounded-full transform -translate-x-1/2 -translate-y-1/2`}></div>
           
           {/* Áreas do goleiro */}
-          <div className={`absolute top-4 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
-          <div className={`absolute bottom-4 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white transform -translate-x-1/2`}></div>
+          <div className={`absolute top-4 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white dark:border-gray-200 transform -translate-x-1/2`}></div>
+          <div className={`absolute bottom-4 left-1/2 ${isMobile ? 'w-24 h-12' : 'w-32 h-16'} border-2 border-white dark:border-gray-200 transform -translate-x-1/2`}></div>
         </div>
 
         {/* Time A (parte superior) */}

@@ -103,7 +103,7 @@ const AppContent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
       <main className={`${isMobile ? 'pt-16 pb-20 px-0' : 'container mx-auto p-6'}`}>
         {renderPage()}

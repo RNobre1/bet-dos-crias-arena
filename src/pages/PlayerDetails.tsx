@@ -67,10 +67,10 @@ const PlayerDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando dados do jogador...</p>
+          <p className="text-gray-600 dark:text-gray-400">Carregando dados do jogador...</p>
         </div>
       </div>
     );
@@ -78,11 +78,11 @@ const PlayerDetails: React.FC = () => {
 
   if (!player) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-2">Jogador não encontrado</h2>
-            <p className="text-gray-600 mb-4">O jogador solicitado não foi encontrado.</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">O jogador solicitado não foi encontrado.</p>
             <Link to="/">
               <Button>
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -99,19 +99,19 @@ const PlayerDetails: React.FC = () => {
   const radarData = formatRadarData(skills);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-green-800 text-white p-4">
+      <div className="bg-green-800 dark:bg-gray-800 text-white p-4">
         <div className="max-w-6xl mx-auto flex items-center gap-4">
           <Link to="/">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-green-700">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-green-700 dark:hover:bg-gray-700">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
           </Link>
           <div>
             <h1 className="text-2xl font-bold">{player.jogador}</h1>
-            <p className="text-green-200">Análise Detalhada de Performance</p>
+            <p className="text-green-200 dark:text-gray-300">Análise Detalhada de Performance</p>
           </div>
         </div>
       </div>

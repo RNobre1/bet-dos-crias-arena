@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Trophy, Users, TrendingUp, Settings, LogOut, User } from "lucide-react";
 
 interface NavigationProps {
@@ -30,34 +31,37 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
           <div className="flex items-center justify-between h-full px-4">
             <h1 className="text-lg font-bold">PRO VÁRZEA</h1>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 text-green-100 hover:text-white hover:bg-green-700 h-auto py-1">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-green-600 text-white text-sm">
-                      {profile?.username?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm">{profile?.username}</span>
-                    <span className="text-xs text-green-200">C$ {(profile?.saldo_ficticio || 0).toFixed(2)}</span>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Perfil
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={signOut}
-                  className="flex items-center gap-2 text-red-600"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2 text-green-100 hover:text-white hover:bg-green-700 h-auto py-1">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-green-600 text-white text-sm">
+                        {profile?.username?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm">{profile?.username}</span>
+                      <span className="text-xs text-green-200">C$ {(profile?.saldo_ficticio || 0).toFixed(2)}</span>
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={signOut}
+                    className="flex items-center gap-2 text-red-600"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
@@ -123,6 +127,8 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onPageChange }) =>
           </div>
 
           <div className="flex items-center space-x-4">
+            
+            <ThemeToggle />
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
